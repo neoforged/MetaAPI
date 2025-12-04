@@ -24,8 +24,6 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
-	implementation 'io.swagger.core.v3:swagger-annotations:2.2.27'
-	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 
 	runtimeOnly 'org.xerial:sqlite-jdbc:3.47.1.0'
 	runtimeOnly 'org.hibernate.orm:hibernate-community-dialects:7.0.0.Beta1'
