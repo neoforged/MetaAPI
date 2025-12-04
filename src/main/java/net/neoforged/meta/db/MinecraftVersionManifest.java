@@ -42,8 +42,10 @@ public class MinecraftVersionManifest {
 
     /**
      * The manifest content stored directly in the database.
+     * Automatically compressed using deflate.
      */
     @Column(nullable = false, columnDefinition = "BLOB")
+    @jakarta.persistence.Convert(converter = DeflateConverter.class)
     private String content;
 
     public Long getId() {

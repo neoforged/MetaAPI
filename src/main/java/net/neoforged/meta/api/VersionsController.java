@@ -3,11 +3,11 @@ package net.neoforged.meta.api;
 import net.neoforged.meta.db.MinecraftVersionDao;
 import net.neoforged.meta.generated.model.MinecraftVersionDetails;
 import net.neoforged.meta.generated.model.MinecraftVersionSummary;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.net.URI;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
@@ -48,6 +48,7 @@ public class VersionsController implements net.neoforged.meta.generated.api.Vers
         details.setVersion(version.getVersion());
         details.setType(version.getType());
         details.setReleased(version.getReleased().atOffset(ZoneOffset.UTC));
+        details.setJavaVersion(version.getJavaVersion());
         return ResponseEntity.ok(details);
     }
 
@@ -64,11 +65,10 @@ public class VersionsController implements net.neoforged.meta.generated.api.Vers
             return ResponseEntity.notFound().build();
         }
 
-        // If there's a source URL, redirect to it; otherwise return the content directly
-        if (manifest.getSourceUrl() != null) {
-            return ResponseEntity.status(307).location(URI.create(manifest.getSourceUrl())).build();
-        } else {
-            return ResponseEntity.ok(manifest.getContent());
-        }
+        return ResponseEntity.ok()
+                .eTag("\"" + manifest.getSha1() + "\"")
+                .lastModified(manifest.getLastModified().toEpochMilli())
+                .header(HttpHeaders.CONTENT_TYPE, "application/json")
+                .body(manifest.getContent());
     }
 }
