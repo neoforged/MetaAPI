@@ -6,6 +6,7 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -18,6 +19,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -33,9 +35,21 @@ public class MavenRepositoriesFacade {
         this.restClients = properties.getMavenRepositories().stream()
                 .collect(Collectors.toMap(
                         MavenRepositoryProperties::getId,
-                        mr -> RestClient.builder()
-                                .baseUrl(mr.getUrl())
-                                .build()
+                        mr -> {
+                            var builder = RestClient.builder();
+                            for (var entry : mr.getHeaders().entrySet()) {
+                                builder.defaultHeader(entry.getKey(), entry.getValue());
+                            }
+                            builder.requestInterceptor((request, body, execution) -> {
+                                long start = System.nanoTime();
+                                var response = execution.execute(request, body);
+                                long end = System.nanoTime();
+                                long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(end - start);
+                                logger.info("{} {} -> {} in {}ms", request.getMethod(), request.getURI(), response.getStatusCode().value(), elapsedMillis);
+                                return response;
+                            });
+                            return builder.baseUrl(mr.getUrl()).build();
+                        }
                 ));
     }
 
@@ -93,17 +107,59 @@ public class MavenRepositoriesFacade {
     }
 
     public HttpHeaders headArtifact(String repositoryId, String groupId, String artifactId, String version, @Nullable String classifier, @Nullable String extension) {
-        String url = getArtifactPath(groupId, artifactId, version, classifier, extension);
+        var result = headOptionalArtifact(repositoryId, groupId, artifactId, version, classifier, extension);
+        if (result == null) {
+            throw new IllegalStateException("Required artifact is missing.");
+        }
+        return result;
+    }
+
+    @Nullable
+    public HttpHeaders headOptionalArtifact(String repositoryId, String groupId, String artifactId, String version, @Nullable String classifier, @Nullable String extension) {
+        String url = getArtifactPath(repositoryId, groupId, artifactId, version, classifier, extension);
+        var request = getRestClient(repositoryId)
+                .head()
+                .uri(url)
+                // Workaround for https://github.com/spring-projects/spring-framework/issues/35966
+                .header("Accept-Encoding", "")
+                .retrieve()
+                .onStatus(HttpStatus.NOT_FOUND::isSameCodeAs, (_, _) -> {
+                });
+
         try {
-            return getRestClient(repositoryId)
-                    .head()
-                    .uri(url)
-                    .header("Accept-Encoding", "") // Workaround for
-                    .retrieve()
-                    .toBodilessEntity()
-                    .getHeaders();
+            var entity = request.toBodilessEntity();
+
+            if (entity.getStatusCode().equals(HttpStatus.NOT_FOUND)) {
+                return null;
+            }
+
+            return entity.getHeaders();
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve headers from URL " + url, e);
+            throw new RuntimeException("Failed to retrieve headers from " + url + " for repository " + repositoryId, e);
+        }
+    }
+
+    public byte[] getArtifact(String repositoryId, String groupId, String artifactId, String version, @Nullable String classifier, @Nullable String extension) {
+        String url = getArtifactPath(repositoryId, groupId, artifactId, version, classifier, extension);
+
+        try {
+            return getRestClient(repositoryId).get().uri(url).retrieve().body(byte[].class);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve headers from " + url + " for repository " + repositoryId, e);
+        }
+    }
+
+    @Nullable
+    public byte[] getOptionalArtifact(String repositoryId, String groupId, String artifactId, String version, @Nullable String classifier, @Nullable String extension) {
+        String url = getArtifactPath(repositoryId, groupId, artifactId, version, classifier, extension);
+
+        try {
+            return getRestClient(repositoryId).get().uri(url).retrieve()
+                    .onStatus(HttpStatus.NOT_FOUND::isSameCodeAs, (_, _) -> {
+                    })
+                    .body(byte[].class);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve headers from " + url + " for repository " + repositoryId, e);
         }
     }
 
@@ -120,7 +176,8 @@ public class MavenRepositoriesFacade {
 
     }
 
-    private static String getArtifactPath(String groupId, String artifactId, String version, @Nullable String classifier, @Nullable String extension) {
+    public String getArtifactPath(String repositoryId, String groupId, String artifactId, String version, @Nullable String classifier, @Nullable String extension) {
+        // repositoryId is unused by we still ask for it to allow for repository-specific layouts later.
         var encodedVersion = URLEncoder.encode(version, StandardCharsets.UTF_8);
         var path = getComponentPath(groupId, artifactId) + "/" + encodedVersion + "/" + URLEncoder.encode(artifactId, StandardCharsets.UTF_8) + "-" + encodedVersion;
         if (classifier != null) {

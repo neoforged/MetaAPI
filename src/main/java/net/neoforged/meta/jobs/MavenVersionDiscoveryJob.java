@@ -1,10 +1,14 @@
 package net.neoforged.meta.jobs;
 
 import net.neoforged.meta.config.MetaApiProperties;
+import net.neoforged.meta.config.SoftwareComponentArtifactProperties;
 import net.neoforged.meta.config.SoftwareComponentProperties;
 import net.neoforged.meta.config.SoftwareComponentPublicationPropertiesRule;
-import net.neoforged.meta.db.MavenComponentVersion;
 import net.neoforged.meta.db.MavenComponentVersionDao;
+import net.neoforged.meta.db.SoftwareComponentArtifact;
+import net.neoforged.meta.db.SoftwareComponentChangelog;
+import net.neoforged.meta.db.SoftwareComponentVersion;
+import net.neoforged.meta.extract.ChangelogExtractor;
 import net.neoforged.meta.maven.MavenRepositoriesFacade;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -12,8 +16,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.HexFormat;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -35,8 +43,7 @@ public class MavenVersionDiscoveryJob implements Runnable {
             MavenComponentVersionDao versionDao,
             MetaApiProperties apiProperties,
             MavenRepositoriesFacade mavenRepositories,
-            TransactionTemplate transactionTemplate
-    ) {
+            TransactionTemplate transactionTemplate) {
         this.versionDao = versionDao;
         this.components = apiProperties.getComponents();
         this.mavenRepositories = mavenRepositories;
@@ -46,7 +53,7 @@ public class MavenVersionDiscoveryJob implements Runnable {
     @Override
     public void run() {
         for (var component : components) {
-            transactionTemplate.executeWithoutResult(ignored -> discoverComponent(component));
+            discoverComponent(component);
         }
     }
 
@@ -66,38 +73,17 @@ public class MavenVersionDiscoveryJob implements Runnable {
             var existingVersions = Set.copyOf(versionDao.findAllVersionsByGA(groupId, artifactId));
 
             int newVersions = 0;
-            for (String version : discoveredVersions) {
+            for (var version : discoveredVersions) {
                 if (!existingVersions.contains(version)) {
-                    var entity = new MavenComponentVersion();
-                    entity.setGroupId(groupId);
-                    entity.setArtifactId(artifactId);
-                    entity.setVersion(version);
-                    entity.setSnapshot(version.endsWith("-SNAPSHOT"));
-                    entity.setRepository(repository);
-
-                    // Use last-modified of the .pom file which every maven publication should have as the last-modified timestamp of the release and thus the release time
-                    var pomHeaders = mavenRepositories.headArtifact(repository, groupId, artifactId, version, null, "pom");
-                    long lastModified = pomHeaders.getLastModified();
-                    if (lastModified != -1) {
-                        entity.setReleased(Instant.ofEpochMilli(lastModified));
-                    } else {
-                        entity.setReleased(entity.getDiscovered());
+                    try {
+                        transactionTemplate.executeWithoutResult(ignored -> {
+                            discoverVersion(component, version);
+                        });
+                        newVersions++;
+                    } catch (Exception e) {
+                        // TODO: Store the error on the version or as an event
+                        logger.error("Failed to discover version {} of component {}", version, component, e);
                     }
-
-                    var publicationRule = findMatchingPublicationRule(component, version);
-                    if (publicationRule != null) {
-                        for (var artifact : publicationRule.artifacts()) {
-                            var artifactHeaders = mavenRepositories.headArtifact(repository, groupId, artifactId, version, artifact.classifier(), artifact.extension());
-
-                            var artifactContentLength = artifactHeaders.getContentLength();
-                            var artifactLastModified = artifactHeaders.getLastModified();
-                            var etag = artifactHeaders.getETag();
-                        }
-                    }
-
-                    versionDao.saveAndFlush(entity);
-                    newVersions++;
-                    logger.info("Discovered new version: {}:{}:{}", groupId, artifactId, version);
                 }
             }
 
@@ -107,6 +93,115 @@ public class MavenVersionDiscoveryJob implements Runnable {
         } catch (Exception e) {
             logger.error("Error discovering Maven versions for {}:{}", groupId, artifactId, e);
         }
+    }
+
+    private void discoverVersion(SoftwareComponentProperties component, String version) {
+        var versionEntity = new SoftwareComponentVersion();
+        versionEntity.setGroupId(component.getGroupId());
+        versionEntity.setArtifactId(component.getArtifactId());
+        versionEntity.setVersion(version);
+        versionEntity.setSnapshot(version.endsWith("-SNAPSHOT"));
+        versionEntity.setRepository(component.getMavenRepositoryId());
+
+        // Use last-modified of the .pom file which every maven publication should have as the last-modified timestamp of the release and thus the release time
+        var pomHeaders = mavenRepositories.headArtifact(component.getMavenRepositoryId(), component.getGroupId(), component.getArtifactId(), version, null, "pom");
+        long lastModified = pomHeaders.getLastModified();
+        if (lastModified != -1) {
+            versionEntity.setReleased(Instant.ofEpochMilli(lastModified));
+        } else {
+            versionEntity.setReleased(versionEntity.getDiscovered());
+        }
+
+        var publicationRule = findMatchingPublicationRule(component, version);
+        if (publicationRule != null) {
+            for (var artifact : publicationRule.artifacts()) {
+                var artifactEntity = discoverArtifact(component, versionEntity, artifact);
+                if (artifactEntity != null) {
+                    versionEntity.getArtifacts().add(artifactEntity);
+                }
+            }
+        }
+
+        // Post-Process Information
+        var changelog = versionEntity.getArtifact("changelog", "txt");
+        if (changelog != null) {
+            parseChangelog(versionEntity, changelog);
+        }
+
+        versionDao.saveAndFlush(versionEntity);
+        logger.info("Discovered new version: {}:{}:{} ({} artifacts)", component.getMavenRepositoryId(), component.getArtifactId(), version, versionEntity.getArtifacts().size());
+    }
+
+    private void parseChangelog(SoftwareComponentVersion versionEntity, SoftwareComponentArtifact changelogArtifact) {
+        var changelogBody = mavenRepositories.getArtifact(versionEntity.getRepository(), versionEntity.getGroupId(), versionEntity.getArtifactId(), versionEntity.getVersion(), changelogArtifact.getClassifier(), changelogArtifact.getExtension());
+
+        var changelogEntry = ChangelogExtractor.extract(changelogBody, versionEntity.getVersion());
+        if (changelogEntry != null) {
+            var changelogEntity = new SoftwareComponentChangelog();
+            changelogEntity.setComponentVersion(versionEntity);
+            changelogEntity.setChangelog(changelogEntry);
+            versionEntity.setChangelog(changelogEntity);
+        } else {
+            // TODO associate this as a parsing warning with the version
+            logger.warn("Couldn't find changelog entry for version {}", versionEntity.getVersion());
+        }
+    }
+
+    @Nullable
+    private SoftwareComponentArtifact discoverArtifact(SoftwareComponentProperties component,
+                                                       SoftwareComponentVersion versionEntity,
+                                                       SoftwareComponentArtifactProperties artifact) {
+        var artifactHeaders = mavenRepositories.headOptionalArtifact(component.getMavenRepositoryId(), component.getGroupId(), component.getArtifactId(), versionEntity.getVersion(), artifact.classifier(), artifact.extension());
+
+        if (artifactHeaders == null) {
+            if (artifact.optional()) {
+                return null;
+            }
+            throw new IllegalStateException("Required artifact " + artifact + " is missing.");
+        }
+
+        var artifactContentLength = artifactHeaders.getContentLength();
+        var artifactLastModified = artifactHeaders.getLastModified();
+        var etag = artifactHeaders.getETag();
+
+        // TODO: We need to deal with last modification being unknown
+        if (artifactLastModified < 0) {
+            throw new IllegalStateException("No last modification time available for artifact"); // TODO associate with artifact
+        }
+        if (artifactContentLength < 0) {
+            throw new IllegalStateException("No content length available for artifact"); // TODO associate error with artifact
+        }
+
+        var artifactEntity = new SoftwareComponentArtifact();
+        artifactEntity.setComponentVersion(versionEntity);
+        artifactEntity.setClassifier(artifact.classifier());
+        artifactEntity.setExtension(artifact.extension());
+        artifactEntity.setRelativePath(mavenRepositories.getArtifactPath(component.getMavenRepositoryId(), component.getGroupId(), component.getArtifactId(), versionEntity.getVersion(), artifact.classifier(), artifact.extension()));
+        artifactEntity.setSize(artifactContentLength);
+        artifactEntity.setLastModified(Instant.ofEpochMilli(artifactLastModified));
+        artifactEntity.setEtag(etag);
+
+        // Try to discover the checksums
+        for (var checksumType : SoftwareComponentArtifact.ChecksumType.values()) {
+            String checksumExtension = Objects.requireNonNullElse(artifact.extension(), "") + checksumType.checksumExtension();
+            var checksum = new String(mavenRepositories.getArtifact(
+                    component.getMavenRepositoryId(),
+                    component.getGroupId(),
+                    component.getArtifactId(),
+                    versionEntity.getVersion(),
+                    artifact.classifier(),
+                    checksumExtension
+            )).trim().toLowerCase(Locale.ROOT);
+
+            var checksumBytes = HexFormat.of().parseHex(checksum);
+            if (checksumBytes.length != checksumType.byteLength()) {
+                throw new IllegalStateException("Checksum value '" + checksum + "' does not match expected byte length " + checksumType.byteLength());
+            }
+
+            artifactEntity.setChecksum(checksumType, HexFormat.of().formatHex(checksumBytes));
+        }
+
+        return artifactEntity;
     }
 
     private static @Nullable SoftwareComponentPublicationPropertiesRule findMatchingPublicationRule(SoftwareComponentProperties component, String version) {

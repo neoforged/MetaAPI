@@ -1,17 +1,24 @@
 package net.neoforged.meta.db;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 /**
- * Represents a version of a Maven artifact (e.g., net.neoforged:neoforge:21.0.1).
+ * Represents a version of a software component (e.g., net.neoforged:neoforge:21.0.1).
  */
 @Entity
 @Table(
@@ -20,19 +27,19 @@ import java.time.Instant;
                 @Index(name = "idx_maven_gav", columnList = "groupId, artifactId, version", unique = true)
         }
 )
-public class MavenComponentVersion {
+public class SoftwareComponentVersion {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     /**
-     * Maven group ID (e.g., "net.neoforged")
+     * Group ID (e.g., "net.neoforged") identifying the component.
      */
     @Column(nullable = false)
     private String groupId;
 
     /**
-     * Maven artifact ID (e.g., "neoforge")
+     * Artifact ID (e.g., "neoforge") identifying the component.
      */
     @Column(nullable = false)
     private String artifactId;
@@ -44,13 +51,13 @@ public class MavenComponentVersion {
     private String version;
 
     /**
-     * Whether this is a snapshot version
+     * Whether this is a snapshot version, which means it can change over time without notice.
      */
     @Column(nullable = false)
     private boolean snapshot;
 
     /**
-     * Repository where this version was found (e.g., "releases", "snapshots")
+     * Id of the {@link net.neoforged.meta.config.MavenRepositoryProperties} this version was discovered in.
      */
     @Column(nullable = false)
     private String repository;
@@ -67,6 +74,13 @@ public class MavenComponentVersion {
      */
     @Column(nullable = false)
     private Instant discovered = Instant.now();
+
+    @OneToOne(mappedBy = "componentVersion", cascade = {CascadeType.PERSIST, CascadeType.REMOVE})
+    @Nullable
+    private SoftwareComponentChangelog changelog;
+
+    @OneToMany(mappedBy = "componentVersion", cascade = {CascadeType.PERSIST, CascadeType.REMOVE})
+    private List<SoftwareComponentArtifact> artifacts = new ArrayList<>();
 
     public Long getId() {
         return id;
@@ -130,5 +144,31 @@ public class MavenComponentVersion {
 
     public void setDiscovered(Instant discovered) {
         this.discovered = discovered;
+    }
+
+    public List<SoftwareComponentArtifact> getArtifacts() {
+        return artifacts;
+    }
+
+    public void setArtifacts(List<SoftwareComponentArtifact> artifacts) {
+        this.artifacts = artifacts;
+    }
+
+    public @Nullable SoftwareComponentChangelog getChangelog() {
+        return changelog;
+    }
+
+    public void setChangelog(@Nullable SoftwareComponentChangelog changelog) {
+        this.changelog = changelog;
+    }
+
+    @Nullable
+    public SoftwareComponentArtifact getArtifact(@Nullable String classifier, @Nullable String extension) {
+        for (var artifact : getArtifacts()) {
+            if (Objects.equals(classifier, artifact.getClassifier()) && Objects.equals(extension, artifact.getExtension())) {
+                return artifact;
+            }
+        }
+        return null;
     }
 }

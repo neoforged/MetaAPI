@@ -1,6 +1,6 @@
 package net.neoforged.meta.jobs;
 
-import net.neoforged.meta.db.MavenComponentVersion;
+import net.neoforged.meta.db.SoftwareComponentVersion;
 import net.neoforged.meta.db.MavenComponentVersionDao;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.AutoClose;
@@ -88,7 +88,7 @@ class MavenVersionDiscoveryJobTest {
         assertTrue(versionStrings.contains("21.3.4"));
 
         // Verify all are marked as not snapshot
-        assertTrue(versions.stream().noneMatch(MavenComponentVersion::isSnapshot));
+        assertTrue(versions.stream().noneMatch(SoftwareComponentVersion::isSnapshot));
     }
 
     @Test

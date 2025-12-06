@@ -38,3 +38,5 @@ out/
 
 ### Application Data ###
 /data/
+
+/application.properties

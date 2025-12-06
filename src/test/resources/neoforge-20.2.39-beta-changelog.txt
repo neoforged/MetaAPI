@@ -1,0 +1,61 @@
+ - `20.2.39-beta` Redo conditional recipe datagen (#250)
+   
+   - Remove `ConditionalRecipeBuilder`.
+   - Add `RecipeOutput.withConditions(...)` to add conditions to recipes.
+   - Use `dispatchUnsafe` for the attachment codec to avoid nesting values
+     when it's unnecessary.
+ - `20.2.38-beta` [1.20.2] Retain insertion order of tag entries (#258)
+   
+   * Retain insertion order of tag entries
+   
+   * Add comment about why insertion order must be retained
+ - `20.2.37-beta` Fix entity loot datagen not using known types (#253)
+ - `20.2.36-beta` Fix PotionBrewing.Mix#ingredient losing its public visibility (#255)
+ - `20.2.35-beta` Correct a grammatical mistake within SUPPORT.md (#175)
+ - `20.2.34-beta` Fix advancement existing file helper checks in datagen (#240)
+ - `20.2.33-beta` Fix misplaced patch in FireBlock (#247)
+ - `20.2.32-beta` Unbreak the MC-176559 fix (#145)
+ - `20.2.31-beta` Allow datagen to use vanilla armor trim textures (#146)
+ - `20.2.30-beta` [1.20.2] Fix waterlogged blocks being flammable (#244)
+ - `20.2.29-beta` [1.20.2] Update NG and switch patches to auto-headers (#245)
+ - `20.2.28-beta` Temporarily disable update checker for Neo itself (#242)
+ - `20.2.27-beta` Fix mouse scroll events and scroll axis handling (#239)
+ - `20.2.26-beta` Fix player renderer getter in EntityRenderersEvent.AddLayers (#237)
+ - `20.2.25-beta` Remove unneeded `ItemPredicate` extra methods (#234)
+ - `20.2.24-beta` Fix signed chat state de-sync caused by `execute run say` (#222)
+   
+   Fixes #186
+ - `20.2.23-beta` Fix imports in NeoForgeMod (#235)
+ - `20.2.22-beta` Use Correct PoseStack in AFTER_LEVEL (#231)
+ - `20.2.21-beta` Update FML (#233)
+ - `20.2.20-beta` Improve accuracy of FluidType#canConvertToSource for vanilla fluids (#193)
+ - `20.2.19-beta` [1.20.2] Fix ObjLoader leaking and using outdated ResourceManager (#203)
+ - `20.2.18-beta` Use updated translation keys in commands/command arguments (#227)
+ - `20.2.17-beta` Fix DebugLevelSource being off-by-one on grid height (#226)
+ - `20.2.16-beta` Collapse TextureStitchEvent into a single post-stitch event (#208)
+ - `20.2.15-beta` Fix switched armor points icons in HUD (#225)
+   
+   Fixes #224
+ - `20.2.14-beta` Fix shields being instantly broken (#213)
+   
+   A misapplied patch caused a call to stopUsingItem(), which blanks out
+   the currently-using item, even if the shield didn't break.
+   
+   Fixes #211
+ - `20.2.13-beta` Fix switched air graphics in breathing bar (#219)
+ - `20.2.12-beta` Tweak actions for PRs (#217)
+ - `20.2.11-beta` Remove deleted build types from TC config (#221)
+ - `20.2.10-beta` Remove TC PR checks (#216)
+ - `20.2.9-beta` Use GitHub Actions for CI on PRs (#214)
+ - `20.2.8-beta` Convert RenderTypes from BakedModel to their corresponding "moving render type" in the FallingBlockRenderer (#206)
+ - `20.2.7-beta` Fix duplicate sprite expansion in FaceBakery (#207)
+ - `20.2.6-beta` Suffix branch in version (#212)
+   
+   This makes installer and other artifacts from non-main branches
+   distinguishable from artifacts of the main branches (e.g., 1.20.x).
+ - `20.2.5-beta` Add changelog publication (#204)
+ - `20.2.4-beta` Update issue_report.md (Forge -> NeoForge) (#178)
+ - `20.2.3-beta` Release 20.2
+ - `20.2.2-beta` Disable the configuration cache.
+ - `20.2.1-beta` Prepare for 20.2 release.
+ - `20.2.0-beta` Bump AT and CoreMods

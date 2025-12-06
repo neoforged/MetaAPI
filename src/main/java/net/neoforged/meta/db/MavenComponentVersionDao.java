@@ -8,7 +8,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface MavenComponentVersionDao extends JpaRepository<MavenComponentVersion, Long> {
+public interface MavenComponentVersionDao extends JpaRepository<SoftwareComponentVersion, Long> {
 
     /**
      * Find a specific version of a Maven artifact.
@@ -18,9 +18,9 @@ public interface MavenComponentVersionDao extends JpaRepository<MavenComponentVe
      * @param version    The version string
      * @return The matching version entity, or null if not found
      */
-    @Query("from MavenComponentVersion where groupId = :groupId and artifactId = :artifactId and version = :version")
+    @Query("from SoftwareComponentVersion where groupId = :groupId and artifactId = :artifactId and version = :version")
     @Nullable
-    MavenComponentVersion findByGAV(String groupId, String artifactId, String version);
+    SoftwareComponentVersion findByGAV(String groupId, String artifactId, String version);
 
     /**
      * Get all versions for a specific Maven artifact.
@@ -29,8 +29,8 @@ public interface MavenComponentVersionDao extends JpaRepository<MavenComponentVe
      * @param artifactId The Maven artifact ID
      * @return List of all versions for this artifact
      */
-    @Query("from MavenComponentVersion where groupId = :groupId and artifactId = :artifactId order by discovered desc")
-    List<MavenComponentVersion> findAllByGA(String groupId, String artifactId);
+    @Query("from SoftwareComponentVersion where groupId = :groupId and artifactId = :artifactId order by discovered desc")
+    List<SoftwareComponentVersion> findAllByGA(String groupId, String artifactId);
 
     /**
      * Get all version strings for a specific Maven artifact.
@@ -39,7 +39,7 @@ public interface MavenComponentVersionDao extends JpaRepository<MavenComponentVe
      * @param artifactId The Maven artifact ID
      * @return List of version strings
      */
-    @Query("select version from MavenComponentVersion where groupId = :groupId and artifactId = :artifactId order by discovered desc")
+    @Query("select version from SoftwareComponentVersion where groupId = :groupId and artifactId = :artifactId order by discovered desc")
     List<String> findAllVersionsByGA(String groupId, String artifactId);
 
     /**
@@ -50,6 +50,6 @@ public interface MavenComponentVersionDao extends JpaRepository<MavenComponentVe
      * @param version    The version string
      * @return true if the version exists
      */
-    @Query("select count(*) > 0 from MavenComponentVersion where groupId = :groupId and artifactId = :artifactId and version = :version")
+    @Query("select count(*) > 0 from SoftwareComponentVersion where groupId = :groupId and artifactId = :artifactId and version = :version")
     boolean existsByGAV(String groupId, String artifactId, String version);
 }

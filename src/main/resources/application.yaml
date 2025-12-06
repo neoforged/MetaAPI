@@ -8,19 +8,42 @@ meta-api:
       group-id: net.neoforged
       artifact-id: neoforge
       publication-rules:
-        - version-ranges:
-            - '*'
-          artifacts:
+          # No Gradle ".module" metadata in these versions
+          - version-ranges:
+              - '[20.2,20.3)'
+              - '[20.3,20.4)'
+              - '[20.4,20.4.238)'
+              - '[20.5,20.6)'
+              - '[20.6,20.6.122)'
+            artifacts:
+            - extension: pom
             - classifier: universal
+            - classifier: installer
+            - classifier: userdev
+            - classifier: sources
             - classifier: changelog
               extension: txt
-    - maven-repository-id: releases
-      group-id: net.neoforged.fancymodloader
-      artifact-id: loader
+              optional: true
+          - artifacts:
+            - extension: pom
+            - classifier: universal
+            - classifier: installer
+            - classifier: userdev
+            - classifier: sources
+            - extension: module
+            - classifier: changelog
+              extension: txt
+              optional: true
+    # - maven-repository-id: releases
+    #   group-id: net.neoforged.fancymodloader
+    #   artifact-id: loader
 
   maven-repositories:
     - id: releases
-      url: https://maven.neoforged.net/releases/
+      #url: https://maven-direct.neoforged.net/releases-local/
+      url: http://localhost:8088/
+      headers:
+        cdnauth: ${secrets.cdnauth}
 
 scheduled-tasks:
   maven-version-discovery:
