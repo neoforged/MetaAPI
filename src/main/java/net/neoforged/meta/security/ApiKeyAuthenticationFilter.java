@@ -10,7 +10,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
-    private static final String API_KEY_HEADER = "X-API-Key";
+    public static final String API_KEY_HEADER = "X-API-Key";
 
     private final ApiKeyAuthenticationProvider authenticationProvider;
 

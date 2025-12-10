@@ -57,10 +57,10 @@ meta-api:
 scheduled-tasks:
   maven-version-discovery:
     enabled: true
-    cronPattern: "0 */10 * * * *"
+    cron-pattern: "0 */1 * * * *"
   minecraft-version-discovery:
     enabled: true
-    cronPattern: "0 */5 * * * *"
+    cron-pattern: "0 */1 * * * *"
 
 spring:
   application:

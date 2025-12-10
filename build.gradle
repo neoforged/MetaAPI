@@ -80,6 +80,7 @@ openApiGenerate {
             openApiNullable: 'false',
             useSpringBoot3: 'true',
             useSwaggerUI: 'false',
+            requestMappingMode: 'api_interface'
 	]
 }
 

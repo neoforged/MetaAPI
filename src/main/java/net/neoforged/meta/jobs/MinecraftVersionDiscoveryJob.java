@@ -103,17 +103,11 @@ public class MinecraftVersionDiscoveryJob implements Runnable {
         version.setReleased(discoveredVersion.releaseTime().toInstant());
 
         // Fetch the manifest content from the URL
-        String manifestContent;
-        try {
-            manifestContent = RestClient.create()
-                    .get()
-                    .uri(discoveredVersion.url())
-                    .retrieve()
-                    .body(String.class);
-        } catch (Exception e) {
-            logger.error("Failed to fetch manifest for version {}", discoveredVersion.id(), e);
-            return;
-        }
+        String manifestContent = RestClient.create()
+                .get()
+                .uri(discoveredVersion.url())
+                .retrieve()
+                .body(String.class);
 
         if (manifestContent == null) {
             throw new IllegalArgumentException("Empty manifest received from " + discoveredVersion.url());
@@ -152,28 +146,24 @@ public class MinecraftVersionDiscoveryJob implements Runnable {
             manifest.setLastModified(Instant.now());
 
             // Parse manifest to extract Java version
-            try {
-                var parsedManifest = net.neoforged.meta.manifests.version.MinecraftVersionManifest.from(manifest.getContent());
-                if (parsedManifest.javaVersion() == null) {
-                    // For some very old versions, we allow this
-                    if (parsedManifest.releaseTime().isBefore(OffsetDateTime.parse("2014-01-01T00:00:00Z").toInstant())) {
-                        version.setJavaVersion(8);
-                    } else {
-                        throw new IllegalStateException("Version manifest is missing java version.");
-                    }
+            var parsedManifest = net.neoforged.meta.manifests.version.MinecraftVersionManifest.from(manifest.getContent());
+            if (parsedManifest.javaVersion() == null) {
+                // For some very old versions, we allow this
+                if (parsedManifest.releaseTime().isBefore(OffsetDateTime.parse("2014-01-01T00:00:00Z").toInstant())) {
+                    version.setJavaVersion(8);
                 } else {
-                    version.setJavaVersion(parsedManifest.javaVersion().majorVersion());
+                    throw new IllegalStateException("Version manifest is missing java version.");
                 }
+            } else {
+                version.setJavaVersion(parsedManifest.javaVersion().majorVersion());
+            }
 
-                version.getLibraries().clear();
-                for (var library : parsedManifest.libraries()) {
-                    for (var referencedLibrary : ReferencedLibrary.of(library)) {
-                        referencedLibrary.setClientClasspath(true);
-                        version.getLibraries().add(referencedLibrary);
-                    }
+            version.getLibraries().clear();
+            for (var library : parsedManifest.libraries()) {
+                for (var referencedLibrary : ReferencedLibrary.of(library)) {
+                    referencedLibrary.setClientClasspath(true);
+                    version.getLibraries().add(referencedLibrary);
                 }
-            } catch (Exception e) {
-                logger.error("Failed to parse manifest for version {}", discoveredVersion.id(), e);
             }
         }
     }
@@ -186,5 +176,10 @@ public class MinecraftVersionDiscoveryJob implements Runnable {
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException("SHA-1 algorithm not available", e);
         }
+    }
+
+    @Override
+    public String toString() {
+        return "Minecraft Version Discovery";
     }
 }

@@ -4,7 +4,7 @@ info:
   description: NeoForge Meta API v1
   version: 1.0.0
 servers:
-  - url: 'https://meta-api.neoforged.net/v1'
+  - url: 'https://meta-api.prod.k8s.neoforged.net/v1'
 paths:
   /versions/minecraft/:
     get:

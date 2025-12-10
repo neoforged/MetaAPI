@@ -78,47 +78,42 @@ public class MavenVersionDiscoveryJob implements Runnable {
         var artifactId = component.getArtifactId();
         var repository = component.getMavenRepositoryId();
 
-        try {
-            logger.info("Discovering Maven versions for {}:{} in repository {}", groupId, artifactId, repository);
+        logger.info("Discovering Maven versions for {}:{} in repository {}", groupId, artifactId, repository);
 
-            // Get existing versions to avoid duplicates and broken versions to avoid rescanning them
-            var existingVersions = Set.copyOf(versionDao.findAllVersionsByGA(groupId, artifactId));
-            logger.info("Component has {} known versions.", existingVersions.size());
-            var brokenVersions = brokenVersionService.getBrokenVersions(groupId, artifactId);
+        // Get existing versions to avoid duplicates and broken versions to avoid rescanning them
+        var existingVersions = Set.copyOf(versionDao.findAllVersionsByGA(groupId, artifactId));
+        logger.info("Component has {} known versions.", existingVersions.size());
+        var brokenVersions = brokenVersionService.getBrokenVersions(groupId, artifactId);
 
-            var discoveredVersions = mavenRepositories.listComponentVersions(component.getMavenRepositoryId(), component.getGroupId(), component.getArtifactId());
+        var discoveredVersions = mavenRepositories.listComponentVersions(component.getMavenRepositoryId(), component.getGroupId(), component.getArtifactId());
 
-            logger.info("Found {} versions for component {}:{}", discoveredVersions.size(), groupId, artifactId);
+        logger.info("Found {} versions for component {}:{}", discoveredVersions.size(), groupId, artifactId);
 
-            int newVersions = 0;
-            for (var version : discoveredVersions) {
-                if (existingVersions.contains(version)) {
-                    continue;
-                }
-
-                if (brokenVersions.shouldSkipVersion(version)) {
-                    logger.debug("Skipping version {} because it is broken.", version);
-                    continue;
-                }
-
-                try {
-                    transactionTemplate.executeWithoutResult(ignored -> {
-                        discoverVersion(component, version);
-                        brokenVersions.reportSuccess(version);
-                    });
-                    eventService.newComponentVersion(component.getGroupId(), component.getArtifactId(), version);
-                    newVersions++;
-                } catch (Exception e) {
-                    brokenVersions.reportError(version, e);
-                }
+        int newVersions = 0;
+        for (var version : discoveredVersions) {
+            if (existingVersions.contains(version)) {
+                continue;
             }
 
-            logger.info("Completed Maven version discovery for {}:{}. Found {} new versions out of {} total",
-                    groupId, artifactId, newVersions, discoveredVersions.size());
+            if (brokenVersions.shouldSkipVersion(version)) {
+                logger.debug("Skipping version {} because it is broken.", version);
+                continue;
+            }
 
-        } catch (Exception e) {
-            logger.error("Error discovering Maven versions for {}:{}", groupId, artifactId, e);
+            try {
+                transactionTemplate.executeWithoutResult(ignored -> {
+                    discoverVersion(component, version);
+                    brokenVersions.reportSuccess(version);
+                });
+                eventService.newComponentVersion(component.getGroupId(), component.getArtifactId(), version);
+                newVersions++;
+            } catch (Exception e) {
+                brokenVersions.reportError(version, e);
+            }
         }
+
+        logger.info("Completed Maven version discovery for {}:{}. Found {} new versions out of {} total",
+                groupId, artifactId, newVersions, discoveredVersions.size());
     }
 
 
@@ -278,5 +273,10 @@ public class MavenVersionDiscoveryJob implements Runnable {
             }
         }
         return null;
+    }
+
+    @Override
+    public String toString() {
+        return "Maven Version Discovery";
     }
 }

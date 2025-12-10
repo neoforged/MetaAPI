@@ -1,7 +1,5 @@
 package net.neoforged.meta.security;
 
-import net.neoforged.meta.config.SecurityProperties;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -9,11 +7,13 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestHeaderRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatchers;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
@@ -22,20 +22,10 @@ import static org.springframework.security.config.Customizer.withDefaults;
 @EnableMethodSecurity(jsr250Enabled = true)
 public class SecurityConfiguration {
 
-    private final SecurityProperties securityProperties;
     private final ApiKeyAuthenticationProvider apiKeyAuthenticationProvider;
-    private final GroupsToRolesMapper groupsToRolesMapper;
-    private final boolean oauth2Enabled;
 
-    public SecurityConfiguration(
-            SecurityProperties securityProperties,
-            ApiKeyAuthenticationProvider apiKeyAuthenticationProvider,
-            GroupsToRolesMapper groupsToRolesMapper,
-            @Autowired(required = false) ClientRegistrationRepository clientRegistrationRepository) {
-        this.securityProperties = securityProperties;
+    public SecurityConfiguration(ApiKeyAuthenticationProvider apiKeyAuthenticationProvider) {
         this.apiKeyAuthenticationProvider = apiKeyAuthenticationProvider;
-        this.groupsToRolesMapper = groupsToRolesMapper;
-        this.oauth2Enabled = clientRegistrationRepository != null;
     }
 
     /**
@@ -45,23 +35,20 @@ public class SecurityConfiguration {
     @Bean
     @Order(1)
     public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) {
-        http
-                .securityMatcher("/v1/**", "/actuator/**")
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-                        .anyRequest().permitAll() // API endpoints are public, but can be authenticated with API key
-                )
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
+        return http
+                .securityMatcher(RequestMatchers.allOf(
+                        PathPatternRequestMatcher.pathPattern("/v1/**"),
+                        new RequestHeaderRequestMatcher(ApiKeyAuthenticationFilter.API_KEY_HEADER)
+                ))
+                .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // API usage does not require CSRF
                 .csrf(csrf -> csrf.disable())
                 .addFilterBefore(
                         new ApiKeyAuthenticationFilter(apiKeyAuthenticationProvider),
                         UsernamePasswordAuthenticationFilter.class
-                );
-
-        return http.build();
+                )
+                .build();
     }
 
     /**
@@ -76,7 +63,7 @@ public class SecurityConfiguration {
 
         return http
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/", "/versions", "/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
+                        .requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(withDefaults())
