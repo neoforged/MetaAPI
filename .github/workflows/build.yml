@@ -10,7 +10,7 @@ permissions:
   packages: write
 
 jobs:
-  push-plugin:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: neoforged/actions/checkout@main
