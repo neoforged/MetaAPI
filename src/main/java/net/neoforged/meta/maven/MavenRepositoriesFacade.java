@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import tools.jackson.dataformat.xml.XmlMapper;
 
+import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -48,7 +49,11 @@ public class MavenRepositoriesFacade {
                                 logger.info("{} {} -> {} in {}ms", request.getMethod(), request.getURI(), response.getStatusCode().value(), elapsedMillis);
                                 return response;
                             });
-                            return builder.baseUrl(mr.getUrl()).build();
+                            String baseUrl = mr.getUrl().toString();
+                            if (!baseUrl.endsWith("/")) {
+                                baseUrl += "/";
+                            }
+                            return builder.baseUrl(baseUrl).build();
                         }
                 ));
     }

@@ -3,18 +3,29 @@ package net.neoforged.meta.jobs;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * Helper class for creating a fake Maven repository HTTP server for testing.
@@ -34,8 +45,12 @@ import java.util.Map;
  * </pre>
  */
 public class FakeMavenRepository implements AutoCloseable {
+    private static final String MAVEN_METADATA_XML = "maven-metadata.xml";
     private final HttpServer server;
     private final Map<String, ArtifactMetadata> artifacts = new HashMap<>();
+    private static final DateTimeFormatter HTTP_DATE_FORMAT = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss z", Locale.ENGLISH).withZone(ZoneId.of("GMT"));
+
+    private static final Logger LOG = LoggerFactory.getLogger(FakeMavenRepository.class);
 
     public FakeMavenRepository() {
         try {
@@ -43,7 +58,23 @@ public class FakeMavenRepository implements AutoCloseable {
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to create fake maven repository.", e);
         }
-        server.createContext("/", new RequestHandler());
+        var handler = new RequestHandler();
+        server.createContext("/", exchange -> {
+            try {
+                handler.handle(exchange);
+            } catch (IOException e) {
+                throw e;
+            } catch (Exception e) {
+                LOG.error("Uncaught Exception", e);
+                var errorOut = new ByteArrayOutputStream();
+                e.printStackTrace(new PrintWriter(errorOut));
+                exchange.sendResponseHeaders(500, errorOut.toByteArray().length);
+                exchange.getResponseBody().write(errorOut.toByteArray());
+            } finally {
+                exchange.close();
+            }
+
+        });
         start();
     }
 
@@ -122,8 +153,11 @@ public class FakeMavenRepository implements AutoCloseable {
             this.metadata = metadata;
         }
 
-        public ArtifactMetadataBuilder withVersion(String version) {
-            metadata.versions.add(version);
+        public ArtifactMetadataBuilder withVersion(String version, Consumer<MavenVersionBuilder> builderConsumer) {
+            Map<String, FileContent> files = new HashMap<>();
+            var builder = new MavenVersionBuilder(metadata.groupId, metadata.artifactId, version, files);
+            builderConsumer.accept(builder);
+            metadata.versions.put(version, files);
             return this;
         }
 
@@ -133,6 +167,9 @@ public class FakeMavenRepository implements AutoCloseable {
         }
     }
 
+    record FileContent(byte[] content, Instant lastModified) {
+    }
+
     /**
      * Metadata for a Maven artifact.
      */
@@ -140,7 +177,7 @@ public class FakeMavenRepository implements AutoCloseable {
         final String repository;
         final String groupId;
         final String artifactId;
-        final List<String> versions = new ArrayList<>();
+        final Map<String, Map<String, FileContent>> versions = new HashMap<>();
         boolean snapshot = false;
         boolean invalid = false;
 
@@ -150,28 +187,49 @@ public class FakeMavenRepository implements AutoCloseable {
             this.artifactId = artifactId;
         }
 
-        String toJson() {
+        public byte[] createMavenMetadataXml() {
             if (invalid) {
-                return "this is not valid JSON";
+                return new byte[0];
             }
 
-            StringBuilder json = new StringBuilder();
-            json.append("{\n");
-            json.append("  \"isSnapshot\": ").append(snapshot).append(",\n");
-            json.append("  \"versions\": [\n");
+            try {
+                var document = DocumentBuilderFactory.newDefaultInstance().newDocumentBuilder().newDocument();
+                var rootEl = document.createElement("metadata");
+                document.appendChild(rootEl);
 
-            for (int i = 0; i < versions.size(); i++) {
-                json.append("    \"").append(versions.get(i)).append("\"");
-                if (i < versions.size() - 1) {
-                    json.append(",");
+                var rootGroupIdEl = document.createElement("groupId");
+                rootGroupIdEl.setTextContent(groupId);
+                rootEl.appendChild(rootGroupIdEl);
+                var rootArtifactIdEl = document.createElement("artifactId");
+                rootArtifactIdEl.setTextContent(artifactId);
+                rootEl.appendChild(rootArtifactIdEl);
+
+                var versioningEl = document.createElement("versioning");
+                rootEl.appendChild(versioningEl);
+
+                var versionsEl = document.createElement("versions");
+                versioningEl.appendChild(versionsEl);
+
+                for (var version : this.versions.keySet()) {
+                    var versionEl = document.createElement("version");
+                    versionEl.setTextContent(version);
+                    versionsEl.appendChild(versionEl);
                 }
-                json.append("\n");
+
+                // Java XML APIs... Verbosity personified.
+                var tf = TransformerFactory.newInstance();
+                var transformer = tf.newTransformer();
+                transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no");
+                transformer.setOutputProperty(OutputKeys.METHOD, "xml");
+                transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+                transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
+
+                var bos = new ByteArrayOutputStream();
+                transformer.transform(new DOMSource(document), new StreamResult(bos));
+                return bos.toByteArray();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
             }
-
-            json.append("  ]\n");
-            json.append("}\n");
-
-            return json.toString();
         }
     }
 
@@ -182,57 +240,65 @@ public class FakeMavenRepository implements AutoCloseable {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             String path = exchange.getRequestURI().getPath();
-
-            // Expected format: /api/maven/versions/{repository}/{groupId}/{artifactId}
-            if (!path.startsWith("/api/maven/versions/")) {
+            var parts = new ArrayList<>(Arrays.asList(path.substring(1).split("/")));
+            if (parts.size() < 4) {
+                // at least repository/group/artifact/filename
                 exchange.sendResponseHeaders(404, -1);
-                exchange.close();
                 return;
             }
 
-            // Remove prefix
-            String remainder = path.substring("/api/maven/versions/".length());
-            String[] parts = remainder.split("/", 2);
+            var repositoryId = parts.removeFirst();
+            var filename = parts.removeLast();
 
-            if (parts.length < 2) {
-                exchange.sendResponseHeaders(404, -1);
-                exchange.close();
+            if (MAVEN_METADATA_XML.equals(filename)) {
+                var artifactId = parts.removeLast();
+                var groupId = String.join(".", parts);
+
+                String key = repositoryId + ":" + groupId + ":" + artifactId;
+                ArtifactMetadata metadata = artifacts.get(key);
+
+                if (metadata == null) {
+                    exchange.sendResponseHeaders(404, -1);
+                    return;
+                }
+
+                byte[] response = metadata.createMavenMetadataXml();
+                exchange.getResponseHeaders().set("Content-Type", "application/xml");
+                exchange.sendResponseHeaders(200, response.length);
+                exchange.getResponseBody().write(response);
                 return;
             }
 
-            String repository = parts[0];
-            String gavPath = parts[1]; // e.g., "net/neoforged/neoforge"
+            var version = parts.removeLast();
+            var artifactId = parts.removeLast();
+            var groupId = String.join(".", parts);
 
-            // Convert GAV path back to groupId:artifactId
-            int lastSlash = gavPath.lastIndexOf('/');
-            if (lastSlash == -1) {
-                exchange.sendResponseHeaders(404, -1);
-                exchange.close();
-                return;
-            }
-
-            String groupId = gavPath.substring(0, lastSlash).replace('/', '.');
-            String artifactId = gavPath.substring(lastSlash + 1);
-
-            String key = repository + ":" + groupId + ":" + artifactId;
+            String key = repositoryId + ":" + groupId + ":" + artifactId;
             ArtifactMetadata metadata = artifacts.get(key);
 
             if (metadata == null) {
-                // Check if we have this key but it's null (indicating 404)
-                if (artifacts.containsKey(key)) {
-                    exchange.sendResponseHeaders(404, -1);
-                } else {
-                    exchange.sendResponseHeaders(404, -1);
-                }
-                exchange.close();
+                exchange.sendResponseHeaders(404, -1);
                 return;
             }
 
-            byte[] response = metadata.toJson().getBytes(StandardCharsets.UTF_8);
-            exchange.getResponseHeaders().set("Content-Type", "application/json");
-            exchange.sendResponseHeaders(200, response.length);
-            exchange.getResponseBody().write(response);
-            exchange.close();
+            var files = metadata.versions.get(version);
+            var file = files.get(filename);
+
+            if (file == null) {
+                exchange.sendResponseHeaders(404, -1);
+                return;
+            }
+
+            exchange.getResponseHeaders().set("Last-Modified", HTTP_DATE_FORMAT.format(file.lastModified));
+            exchange.getResponseHeaders().set("Content-Length", String.valueOf(file.content.length));
+            if (exchange.getRequestMethod().equals("HEAD")) {
+                exchange.sendResponseHeaders(200, -1);
+            } else if (exchange.getRequestMethod().equals("GET")) {
+                exchange.sendResponseHeaders(200, file.content.length);
+                exchange.getResponseBody().write(file.content);
+            } else {
+                exchange.sendResponseHeaders(405, -1);
+            }
         }
     }
 }

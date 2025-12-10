@@ -47,16 +47,19 @@ public final class NeoForgeVersionExtractor {
             String installerProfileText, versionManifestText;
             InstallerProfile installerProfile;
             MinecraftVersionManifest versionManifest;
-            String serverUnixArgs = null, serverWindowsArgs = null;
+            String serverUnixArgs, serverWindowsArgs;
             try (var zf = new ZipFile(installer.toFile())) {
                 installerProfileText = readEntryAsString(zf, "install_profile.json");
                 installerProfile = InstallerProfile.from(installerProfileText);
+                if (installerProfile.getJson() == null) {
+                    throw new IllegalStateException("Installer profile is missing key for version manifest.");
+                }
                 versionManifestText = readEntryAsString(zf, installerProfile.getJson());
                 versionManifest = MinecraftVersionManifest.from(versionManifestText);
 
                 // Get server startup command line arguments
-                serverUnixArgs = readEntryAsString(zf, "data/unix_args.txt", null);
-                serverWindowsArgs = readEntryAsString(zf, "data/win_args.txt", null);
+                serverUnixArgs = readEntryAsString(zf, "data/unix_args.txt");
+                serverWindowsArgs = readEntryAsString(zf, "data/win_args.txt");
             }
 
             // Collect all libraries that are used by processors, separated by side

@@ -1,16 +1,18 @@
 package net.neoforged.meta.jobs;
 
-import net.neoforged.meta.db.SoftwareComponentVersion;
 import net.neoforged.meta.db.MavenComponentVersionDao;
+import net.neoforged.meta.db.MinecraftVersion;
+import net.neoforged.meta.db.MinecraftVersionDao;
+import net.neoforged.meta.db.SoftwareComponentVersion;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.util.TestPropertyValues;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.test.annotation.DirtiesContext;
@@ -18,6 +20,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 
 import java.nio.file.Path;
+import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -49,7 +52,7 @@ class MavenVersionDiscoveryJobTest {
     }
 
     @Autowired
-    ApplicationContext applicationContext;
+    MinecraftVersionDao minecraftVersionDao;
 
     @Autowired
     MavenComponentVersionDao versionDao;
@@ -57,23 +60,33 @@ class MavenVersionDiscoveryJobTest {
     @Autowired
     private MavenVersionDiscoveryJob job;
 
+    @BeforeEach
+    void setUp() {
+        var minecraftVersion = new MinecraftVersion();
+        minecraftVersion.setVersion("1.0.0");
+        minecraftVersion.setType("release");
+        minecraftVersion.setReleased(Instant.now());
+        minecraftVersionDao.save(minecraftVersion);
+    }
+
     @AfterEach
     void tearDown() {
         // Clean up database and server after each test
         versionDao.deleteAll();
+        minecraftVersionDao.deleteAll();
         mavenRepo.clear();
     }
 
     @Test
-    void testDiscoverVersionsFromMavenApi() {
+    void testDiscoverVersionsFromMaven() {
         // Set up fake Maven repository with multiple versions
         mavenRepo.addArtifact("releases", "net.neoforged", "neoforge")
-                .withVersion("21.3.0-beta")
-                .withVersion("21.3.1-beta")
-                .withVersion("21.3.2")
-                .withVersion("21.3.3")
-                .withVersion("21.3.4")
-                .withVersion("21.3.5-beta")
+                .withVersion("21.3.0-beta", builder -> builder.neoForgePublication())
+                .withVersion("21.3.1-beta", builder -> builder.neoForgePublication())
+                .withVersion("21.3.2", builder -> builder.neoForgePublication())
+                .withVersion("21.3.3", builder -> builder.neoForgePublication())
+                .withVersion("21.3.4", builder -> builder.neoForgePublication())
+                .withVersion("21.3.5-beta", builder -> builder.neoForgePublication())
                 .withSnapshot(false);
 
         job.run();
@@ -119,8 +132,8 @@ class MavenVersionDiscoveryJobTest {
     void testAddsNewVersions() {
         // Set up repository with initial versions
         mavenRepo.addArtifact("releases", "net.neoforged", "neoforge")
-                .withVersion("21.3.0")
-                .withVersion("21.3.1")
+                .withVersion("21.3.0", builder -> builder.neoForgePublication())
+                .withVersion("21.3.1", builder -> builder.neoForgePublication())
                 .withSnapshot(false);
 
         // Run job first time
@@ -132,9 +145,9 @@ class MavenVersionDiscoveryJobTest {
         // Update repository with new version
         mavenRepo.clear();
         mavenRepo.addArtifact("releases", "net.neoforged", "neoforge")
-                .withVersion("21.3.0")
-                .withVersion("21.3.1")
-                .withVersion("21.3.2")  // New version
+                .withVersion("21.3.0", builder -> builder.neoForgePublication())
+                .withVersion("21.3.1", builder -> builder.neoForgePublication())
+                .withVersion("21.3.2", builder -> builder.neoForgePublication())  // New version
                 .withSnapshot(false);
 
         // Run job again with updated repository
@@ -155,7 +168,9 @@ class MavenVersionDiscoveryJobTest {
         @Override
         public void initialize(ConfigurableApplicationContext context) {
             TestPropertyValues.of(
-                    "meta-api.data-directory=" + tempDir.toAbsolutePath()
+                    "meta-api.data-directory=" + tempDir.toAbsolutePath(),
+                    "meta-api.maven-repositories[0].id=releases",
+                    "meta-api.maven-repositories[0].url=" + mavenRepo.getBaseUrl() + "/releases"
             ).applyTo(context);
         }
     }

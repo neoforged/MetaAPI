@@ -1,12 +1,8 @@
 package net.neoforged.meta.manifests.version;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import tools.jackson.core.Version;
-import tools.jackson.databind.DeserializationConfig;
 import tools.jackson.databind.DeserializationFeature;
-import tools.jackson.databind.JacksonModule;
 import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.deser.Deserializers;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.module.SimpleModule;
 
@@ -37,5 +33,9 @@ public record MinecraftVersionManifest(String id, Map<String, MinecraftDownload>
 
     public static MinecraftVersionManifest from(String jsonContent) {
         return MAPPER.readValue(jsonContent, MinecraftVersionManifest.class);
+    }
+
+    public byte[] toByteArray() {
+        return MAPPER.writeValueAsBytes(this);
     }
 }

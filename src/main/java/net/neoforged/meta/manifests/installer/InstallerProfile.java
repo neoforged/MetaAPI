@@ -24,6 +24,10 @@ public class InstallerProfile {
         return mapper.readValue(input, InstallerProfile.class);
     }
 
+    public byte[] toByteArray() {
+        return mapper.writeValueAsBytes(this);
+    }
+
     public String getJson() {
         return json;
     }
