@@ -12,7 +12,6 @@ import jakarta.persistence.NamedAttributeNode;
 import jakarta.persistence.NamedEntityGraph;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
-import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -52,7 +51,7 @@ public class MinecraftVersion {
     private int javaVersion;
 
     @OneToOne(mappedBy = "minecraftVersion", cascade = CascadeType.ALL, orphanRemoval = true)
-    private @Nullable MinecraftVersionManifest manifest;
+    private MinecraftVersionManifest manifest;
 
     @OneToMany(mappedBy = "minecraftVersion")
     private List<NeoForgeVersion> neoForgeVersions = new ArrayList<>();
@@ -60,6 +59,13 @@ public class MinecraftVersion {
     @ElementCollection
     @CollectionTable(name = "minecraft_version_libraries")
     private List<ReferencedLibrary> libraries = new ArrayList<>();
+
+    /**
+     * A flag that can be set to true to force this version to be reimported next time the Minecraft
+     * versions are scanned.
+     */
+    @Column(nullable = false)
+    private boolean reimport;
 
     public Long getId() {
         return id;
@@ -101,11 +107,11 @@ public class MinecraftVersion {
         this.imported = imported;
     }
 
-    public @Nullable MinecraftVersionManifest getManifest() {
+    public MinecraftVersionManifest getManifest() {
         return manifest;
     }
 
-    public void setManifest(@Nullable MinecraftVersionManifest manifest) {
+    public void setManifest(MinecraftVersionManifest manifest) {
         this.manifest = manifest;
         if (manifest != null) {
             manifest.setMinecraftVersion(this);
@@ -134,5 +140,13 @@ public class MinecraftVersion {
 
     public void setLibraries(List<ReferencedLibrary> libraries) {
         this.libraries = libraries;
+    }
+
+    public boolean isReimport() {
+        return reimport;
+    }
+
+    public void setReimport(boolean reimport) {
+        this.reimport = reimport;
     }
 }

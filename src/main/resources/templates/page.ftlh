@@ -43,12 +43,14 @@
     </header>
 
     <main>
+        <#if successMessage??>
+            <div class="alert alert-success">${successMessage}</div>
+        </#if>
+        <#if errorMessage??>
+            <div class="alert alert-danger">${errorMessage}</div>
+        </#if>
         <#nested>
     </main>
-
-    <footer>
-        <p>&copy; 2024 NeoForge. All rights reserved.</p>
-    </footer>
 
     <script src="/js/jquery-3.7.1.slim.min.js"></script>
     <script src="/js/datatables.js"></script>

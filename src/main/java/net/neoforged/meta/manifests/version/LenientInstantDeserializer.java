@@ -29,7 +29,7 @@ public class LenientInstantDeserializer extends ValueDeserializer<Instant> {
             } else {
                 value = value + "Z"; // Assume UTC
             }
-        } else if (!OFFSET_OR_TZ_PATTERN.matcher(value).matches()) {
+        } else if (true || !OFFSET_OR_TZ_PATTERN.matcher(value).matches()) {
             value = value + "Z"; // Assume UTC
         }
         

@@ -28,6 +28,16 @@
                 <th>Imported</th>
                 <td>${version.imported?string("Yes", "No")}</td>
             </tr>
+            <tr>
+                <th>Reimport</th>
+                <td>
+                    ${version.reimport?string("Yes", "No")}
+                    <form action="/ui/minecraft-versions/version/${version.version?url}/reimport" method="POST">
+                        <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
+                        <button class="btn">Reimport</button>
+                    </form>
+                </td>
+            </tr>
             </tbody>
         </table>
 

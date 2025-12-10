@@ -4,9 +4,6 @@ import net.neoforged.meta.config.MetaApiProperties;
 import net.neoforged.meta.config.SoftwareComponentArtifactProperties;
 import net.neoforged.meta.config.SoftwareComponentProperties;
 import net.neoforged.meta.config.SoftwareComponentPublicationPropertiesRule;
-import net.neoforged.meta.db.BrokenSoftwareComponentVersion;
-import net.neoforged.meta.db.BrokenSoftwareComponentVersionDao;
-import net.neoforged.meta.db.DiscoveryLogMessage;
 import net.neoforged.meta.db.MavenComponentVersionDao;
 import net.neoforged.meta.db.MinecraftVersionDao;
 import net.neoforged.meta.db.NeoForgeVersion;
@@ -24,15 +21,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Discover new versions of a Maven component using the NeoForged Maven API.
@@ -50,9 +44,8 @@ public class MavenVersionDiscoveryJob implements Runnable {
     private final TransactionTemplate transactionTemplate;
     private final NeoForgeVersionDao neoForgeVersionDao;
     private final MinecraftVersionDao minecraftVersionDao;
-    private final BrokenSoftwareComponentVersionDao brokenSoftwareComponentVersionDao;
     private final EventService eventService;
-    private final MetaApiProperties metaApiProperties;
+    private final BrokenVersionService brokenVersionService;
 
     public MavenVersionDiscoveryJob(
             MavenComponentVersionDao versionDao,
@@ -61,17 +54,16 @@ public class MavenVersionDiscoveryJob implements Runnable {
             TransactionTemplate transactionTemplate,
             NeoForgeVersionDao neoForgeVersionDao,
             MinecraftVersionDao minecraftVersionDao,
-            BrokenSoftwareComponentVersionDao brokenSoftwareComponentVersionDao,
-            EventService eventService, MetaApiProperties metaApiProperties) {
+            EventService eventService,
+            BrokenVersionService brokenVersionService) {
         this.versionDao = versionDao;
         this.components = apiProperties.getComponents();
         this.mavenRepositories = mavenRepositories;
         this.transactionTemplate = transactionTemplate;
         this.neoForgeVersionDao = neoForgeVersionDao;
         this.minecraftVersionDao = minecraftVersionDao;
-        this.brokenSoftwareComponentVersionDao = brokenSoftwareComponentVersionDao;
         this.eventService = eventService;
-        this.metaApiProperties = metaApiProperties;
+        this.brokenVersionService = brokenVersionService;
     }
 
     @Override
@@ -91,13 +83,8 @@ public class MavenVersionDiscoveryJob implements Runnable {
 
             // Get existing versions to avoid duplicates and broken versions to avoid rescanning them
             var existingVersions = Set.copyOf(versionDao.findAllVersionsByGA(groupId, artifactId));
-            var brokenVersions = brokenSoftwareComponentVersionDao.getBrokenVersions(groupId, artifactId)
-                    .stream()
-                    .collect(Collectors.toMap(
-                            BrokenSoftwareComponentVersionDao.BrokenVersionSummary::version,
-                            summary -> summary
-                    ));
-            logger.info("Component has {} known and {} broken versions.", existingVersions.size(), brokenVersions.size());
+            logger.info("Component has {} known versions.", existingVersions.size());
+            var brokenVersions = brokenVersionService.getBrokenVersions(groupId, artifactId);
 
             var discoveredVersions = mavenRepositories.listComponentVersions(component.getMavenRepositoryId(), component.getGroupId(), component.getArtifactId());
 
@@ -109,59 +96,20 @@ public class MavenVersionDiscoveryJob implements Runnable {
                     continue;
                 }
 
-                var brokenVersionSummary = brokenVersions.get(version);
-                if (brokenVersionSummary != null) {
-                    if (!brokenVersionSummary.retry()) {
-                        logger.debug("Skipping version {} because it is broken.", version);
-                        continue;
-                    }
-
-                    // Clear the retry flag first since the following transactions can fail
-                    transactionTemplate.executeWithoutResult(ignored -> {
-                        brokenSoftwareComponentVersionDao.incrementRetryCount(brokenVersionSummary.id());
-                    });
+                if (brokenVersions.shouldSkipVersion(version)) {
+                    logger.debug("Skipping version {} because it is broken.", version);
+                    continue;
                 }
 
                 try {
                     transactionTemplate.executeWithoutResult(ignored -> {
                         discoverVersion(component, version);
-                        if (brokenVersionSummary != null) {
-                            brokenSoftwareComponentVersionDao.deleteById(brokenVersionSummary.id());
-                        }
+                        brokenVersions.reportSuccess(version);
                     });
                     eventService.newComponentVersion(component.getGroupId(), component.getArtifactId(), version);
                     newVersions++;
                 } catch (Exception e) {
-                    // TODO: Store the error on the version or as an event
-                    logger.error("Failed to discover version {} of component {}", version, component, e);
-                    transactionTemplate.executeWithoutResult(ignored -> {
-                        // Update, if it already exists
-                        BrokenSoftwareComponentVersion brokenVersion;
-                        if (brokenVersionSummary != null) {
-                            brokenVersion = brokenSoftwareComponentVersionDao.getReferenceById(brokenVersionSummary.id());
-                            brokenVersion.setLastAttempt(Instant.now());
-                            brokenVersion.getErrors().clear();
-                            brokenVersion.setAttempts(brokenVersion.getAttempts() + 1);
-                        } else {
-                            brokenVersion = new BrokenSoftwareComponentVersion();
-                            brokenVersion.setGroupId(groupId);
-                            brokenVersion.setArtifactId(artifactId);
-                            brokenVersion.setVersion(version);
-                            brokenVersion.setCreated(Instant.now());
-                            brokenVersion.setLastAttempt(brokenVersion.getCreated());
-                            brokenVersion.setAttempts(1);
-                        }
-
-                        var error = new DiscoveryLogMessage();
-                        var sw = new StringWriter();
-                        var w = new PrintWriter(sw);
-                        e.printStackTrace(w);
-                        w.close();
-                        error.setDetails(sw.toString());
-                        brokenVersion.getErrors().add(error);
-
-                        brokenSoftwareComponentVersionDao.saveAndFlush(brokenVersion);
-                    });
+                    brokenVersions.reportError(version, e);
                 }
             }
 
@@ -172,6 +120,7 @@ public class MavenVersionDiscoveryJob implements Runnable {
             logger.error("Error discovering Maven versions for {}:{}", groupId, artifactId, e);
         }
     }
+
 
     private void discoverVersion(SoftwareComponentProperties component, String version) {
         SoftwareComponentVersion versionEntity;

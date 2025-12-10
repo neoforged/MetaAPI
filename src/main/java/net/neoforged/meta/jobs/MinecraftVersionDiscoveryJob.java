@@ -6,22 +6,18 @@ import net.neoforged.meta.db.MinecraftVersionDao;
 import net.neoforged.meta.db.MinecraftVersionManifest;
 import net.neoforged.meta.db.ReferencedLibrary;
 import net.neoforged.meta.manifests.launcher.LauncherManifest;
-import net.neoforged.meta.manifests.version.MinecraftDownload;
-import net.neoforged.meta.manifests.version.MinecraftLibrary;
-import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.client.RestClient;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.HexFormat;
-import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Component
 public class MinecraftVersionDiscoveryJob implements Runnable {
@@ -29,66 +25,77 @@ public class MinecraftVersionDiscoveryJob implements Runnable {
     private static final Logger logger = LoggerFactory.getLogger(MinecraftVersionDiscoveryJob.class);
 
     private final RestClient restClient;
-
     private final MinecraftVersionDao minecraftVersionDao;
+    private final BrokenVersionService brokenVersionService;
+    private final TransactionTemplate transactionTemplate;
 
-    public MinecraftVersionDiscoveryJob(MinecraftVersionDao minecraftVersionDao, MetaApiProperties apiProperties) {
+    public MinecraftVersionDiscoveryJob(MinecraftVersionDao minecraftVersionDao,
+                                        MetaApiProperties apiProperties,
+                                        BrokenVersionService brokenVersionService,
+                                        TransactionTemplate transactionTemplate) {
         this.minecraftVersionDao = minecraftVersionDao;
         this.restClient = RestClient.builder()
                 .baseUrl(apiProperties.getMinecraftLauncherMetaUrl())
                 .build();
+        this.brokenVersionService = brokenVersionService;
+        this.transactionTemplate = transactionTemplate;
     }
 
     @Override
-    @Transactional
     public void run() {
         logger.info("Starting Minecraft metadata polling job");
 
-        var launcherManifest = restClient.get()
-                .retrieve()
-                .body(LauncherManifest.class);
+        var launcherManifest = restClient.get().retrieve().body(LauncherManifest.class);
 
         var existingVersions = minecraftVersionDao.getAllVersions();
-
         logger.info("Discovered {} versions. {} are already known.", launcherManifest.versions().size(), existingVersions.size());
-        var versionsAdded = 0;
-        var versionsChanged = 0;
+
+        var brokenVersions = brokenVersionService.getBrokenMinecraftVersions();
+
+        var versionsAdded = new AtomicInteger();
+        var versionsChanged = new AtomicInteger();
 
         for (var discoveredVersion : launcherManifest.versions()) {
             logger.trace("Working on version {}", discoveredVersion.id());
-            var existingVersion = minecraftVersionDao.getByVersion(discoveredVersion.id());
-            if (existingVersion != null) {
-                // Check if manifest changed
-                var existingManifest = existingVersion.getManifest();
-                boolean manifestChanged = existingManifest == null ||
-                        !existingManifest.getSha1().equals(discoveredVersion.sha1());
 
-                if (manifestChanged) {
-                    try {
+            if (brokenVersions.shouldSkipVersion(discoveredVersion.id())) {
+                logger.debug("Skipping version {} since it's broken", discoveredVersion.id());
+                continue;
+            }
+
+            // Import each version in a separate DB transaction to avoid locking the DB for too long.
+            try {
+                transactionTemplate.executeWithoutResult(ignored -> {
+                    var existingVersion = minecraftVersionDao.getByVersion(discoveredVersion.id());
+                    if (existingVersion != null) {
+                        // Check if manifest changed
+                        var existingManifest = existingVersion.getManifest();
+                        boolean manifestChanged = existingManifest == null ||
+                                !existingManifest.getSha1().equals(discoveredVersion.sha1());
+
+                        if (manifestChanged || existingVersion.isReimport()) {
+                            existingVersion.setReimport(false);
+
+                            updateVersion(discoveredVersion, existingVersion);
+                            versionsChanged.incrementAndGet();
+                        }
+                        brokenVersions.reportSuccess(discoveredVersion.id());
+                    } else {
+                        existingVersion = new MinecraftVersion();
+                        existingVersion.setVersion(discoveredVersion.id());
+                        existingVersion.setImported(true);
                         updateVersion(discoveredVersion, existingVersion);
-                    } catch (Exception e) {
-                        logger.error("Failed to update version {}", discoveredVersion.id(), e);
-                        minecraftVersionDao.flush();
-                        continue;
+                        minecraftVersionDao.save(existingVersion);
+                        versionsAdded.incrementAndGet();
                     }
-                    versionsChanged++;
-                }
-            } else {
-                existingVersion = new MinecraftVersion();
-                existingVersion.setVersion(discoveredVersion.id());
-                existingVersion.setImported(true);
-                try {
-                    updateVersion(discoveredVersion, existingVersion);
-                    minecraftVersionDao.saveAndFlush(existingVersion);
-                } catch (Exception e) {
-                    logger.error("Failed to create version {}", discoveredVersion.id(), e);
-                    continue;
-                }
-                versionsAdded++;
+                });
+                brokenVersions.reportSuccess(discoveredVersion.id());
+            } catch (Exception e) {
+                brokenVersions.reportError(discoveredVersion.id(), e);
             }
         }
 
-        logger.info("Completed Minecraft metadata polling job. Versions added: {}, changed: {}", versionsAdded, versionsChanged);
+        logger.info("Completed Minecraft metadata polling job. Versions added: {}, changed: {}", versionsAdded.get(), versionsChanged.get());
     }
 
     private void updateVersion(LauncherManifest.Version discoveredVersion, MinecraftVersion version) {
