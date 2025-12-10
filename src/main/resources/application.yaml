@@ -2,6 +2,17 @@ meta-api:
   data-directory: ${DATA_DIR:./data}
   minecraft-launcher-meta-url: https://piston-meta.mojang.com/mc/game/version_manifest_v2.json
 
+  # Security configuration
+  security:
+    api-keys:
+      # Example API keys - replace with your own in production
+      # - "your-api-key-here"
+    admin-groups:
+      - neoforged:infrastructure
+    user-groups:
+      - neoforged:infrastructure
+      - neoforged:maintainers
+
   # Maven artifact version discovery
   components:
     - maven-repository-id: releases
@@ -54,6 +65,25 @@ scheduled-tasks:
 spring:
   application:
     name: meta-api
+
+  # OAuth2 / OpenID Connect configuration
+  security:
+    oauth2:
+      client:
+        registration:
+          dex:
+            client-id: ${secrets.oidc-client-id}
+            client-secret: ${secrets.oidc-client-secret}
+            scope:
+              - openid
+              - groups
+              - profile
+              - email
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+        provider:
+          dex:
+            issuer-uri: https://auth.prod.k8s.neoforged.net
+            user-name-attribute: preferred_username # "sub" will be a randomly generated id, this will be the GitHub username
 
   datasource:
     url: jdbc:sqlite:${meta-api.data-directory}/meta-api.db

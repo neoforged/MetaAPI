@@ -1,0 +1,43 @@
+name: Publish image with plugin
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  packages: write
+
+jobs:
+  push-plugin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: neoforged/actions/checkout@main
+
+      - name: Setup Java 25
+        uses: neoforged/actions/setup-java@main
+        with:
+          java-version: 25
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Create Docker Metadata
+        id: docker_metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=1.0.0
+            type=schedule
+            type=ref,event=branch
+            type=ref,event=tag
+            type=ref,event=pr
+
+      - name: Build with Gradle
+        run: ./gradlew build
+        env:
+          GH_USERNAME: '${{ github.actor }}'
+          GH_PASSWORD: '${{ github.token }}'

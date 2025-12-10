@@ -13,7 +13,6 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.web.client.RestClient;
 
 @SpringBootApplication
 @EnableConfigurationProperties(MetaApiProperties.class)

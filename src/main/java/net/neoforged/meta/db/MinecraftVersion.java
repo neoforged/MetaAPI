@@ -8,6 +8,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.NamedAttributeNode;
+import jakarta.persistence.NamedEntityGraph;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import org.jspecify.annotations.Nullable;
@@ -17,6 +19,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+@NamedEntityGraph(name = "MinecraftVersion.full",
+        attributeNodes = {
+                @NamedAttributeNode("libraries"),
+                @NamedAttributeNode("manifest"),
+        }
+)
 public class MinecraftVersion {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

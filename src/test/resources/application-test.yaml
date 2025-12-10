@@ -8,3 +8,8 @@ scheduled-tasks:
     enabled: false
   minecraft-version-discovery:
     enabled: false
+
+# Security configuration for tests
+meta-api:
+  security:
+    api-keys: []
