@@ -8,6 +8,9 @@ import tools.jackson.databind.ValueDeserializer;
 import java.time.Instant;
 import java.util.regex.Pattern;
 
+/**
+ * An Instant parser to leniently handle the non-conforming NeoForge timestamps.
+ */
 public class LenientInstantDeserializer extends ValueDeserializer<Instant> {
     private static final Pattern OFFSET_OR_TZ_PATTERN = Pattern.compile(".*(?:Z|[+-][01]\\d:[0-5]\\d)$");
 
