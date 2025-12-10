@@ -1,3 +1,5 @@
+import groovy.json.JsonSlurper
+
 plugins {
 	id 'java'
 	id 'org.springframework.boot' version '4.0.0'
@@ -20,12 +22,17 @@ repositories {
 	mavenCentral()
 }
 
+final dockerMetadataJson = providers.environmentVariable("DOCKER_METADATA_JSON").map {
+    final slurper = new JsonSlurper()
+    return slurper.parseText(it)
+}
 jib {
     from {
         image = project.docker_base_image
     }
     to {
         image = 'ghcr.io/shartte/neoforge-meta-api'
+        tags = dockerMetadataJson.map { new HashSet<String>(it['tag-names']) }
         auth {
             username = providers.environmentVariable("GH_USERNAME")
             password = providers.environmentVariable("GH_PASSWORD")
@@ -33,6 +40,7 @@ jib {
     }
     container {
         ports = ['8080']
+        labels.putAll(dockerMetadataJson.map { it['labels'] as Map })
     }
 }
 

@@ -37,7 +37,8 @@ jobs:
             type=ref,event=pr
 
       - name: Build with Gradle
-        run: ./gradlew build
+        run: ./gradlew jib
         env:
           GH_USERNAME: '${{ github.actor }}'
           GH_PASSWORD: '${{ github.token }}'
+          DOCKER_METADATA_JSON: '${{ steps.docker_metadata.outputs.json }}'
