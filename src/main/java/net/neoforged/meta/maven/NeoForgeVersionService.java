@@ -3,9 +3,9 @@ package net.neoforged.meta.maven;
 import net.neoforged.meta.db.NeoForgeVersion;
 import net.neoforged.meta.db.SoftwareComponentVersion;
 import net.neoforged.meta.db.SoftwareComponentVersionDao;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
@@ -30,7 +30,18 @@ public class NeoForgeVersionService {
         return result;
     }
 
+    @Nullable
     public NeoForgeVersion getVersion(String version) {
+        var entity = dao.findByGAV(GROUP_ID, NEOFORGE_ARTIFACT_ID, version);
+        if (entity instanceof NeoForgeVersion neoForgeVersion) {
+            return neoForgeVersion;
+        }
+
+        entity = dao.findByGAV(GROUP_ID, FORGE_ARTIFACT_ID, version);
+        if (entity instanceof NeoForgeVersion neoForgeVersion) {
+            return neoForgeVersion;
+        }
+
         return null;
     }
 }

@@ -3,6 +3,7 @@ package net.neoforged.meta.api;
 import net.neoforged.meta.db.MinecraftVersionDao;
 import net.neoforged.meta.db.NeoForgeVersion;
 import net.neoforged.meta.db.NeoForgeVersionDao;
+import net.neoforged.meta.generated.api.MinecraftVersionsApi;
 import net.neoforged.meta.generated.model.MinecraftVersionDetails;
 import net.neoforged.meta.generated.model.MinecraftVersionSummary;
 import org.springframework.http.HttpHeaders;
@@ -16,12 +17,12 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
-public class VersionsController implements net.neoforged.meta.generated.api.VersionsApi {
+public class MinecraftVersionsController implements MinecraftVersionsApi {
 
     private final MinecraftVersionDao minecraftVersionDao;
     private final NeoForgeVersionDao neoForgeVersionDao;
 
-    public VersionsController(MinecraftVersionDao minecraftVersionDao, NeoForgeVersionDao neoForgeVersionDao) {
+    public MinecraftVersionsController(MinecraftVersionDao minecraftVersionDao, NeoForgeVersionDao neoForgeVersionDao) {
         this.minecraftVersionDao = minecraftVersionDao;
         this.neoForgeVersionDao = neoForgeVersionDao;
     }

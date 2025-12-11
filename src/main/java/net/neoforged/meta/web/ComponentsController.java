@@ -118,7 +118,10 @@ public class ComponentsController {
         model.addAttribute("warnings", List.copyOf(details.getWarnings()));
         model.addAttribute("artifacts", List.copyOf(details.getArtifacts()));
         model.addAttribute("repository", repository);
-        model.addAttribute("neoForgeVersion", details instanceof NeoForgeVersion);
+        if (details instanceof NeoForgeVersion neoForgeVersion) {
+            model.addAttribute("neoForgeVersion", neoForgeVersion);
+            model.addAttribute("neoForgeVersionLibraries", List.copyOf(neoForgeVersion.getLibraries()));
+        }
 
         return "component-version-detail";
     }

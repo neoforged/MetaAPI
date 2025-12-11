@@ -6,7 +6,7 @@ info:
 servers:
   - url: 'https://meta-api.prod.k8s.neoforged.net/v1'
 paths:
-  /versions/minecraft/:
+  /minecraft-versions/:
     get:
       operationId: getMinecraftVersions
       description: Gets all available Minecraft versions
@@ -19,7 +19,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/MinecraftVersionSummary'
-  /versions/minecraft/{versionId}/:
+  /minecraft-versions/version/{versionId}/:
     get:
       parameters:
         - name: versionId
@@ -36,7 +36,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MinecraftVersionDetails'
-  /versions/minecraft/{versionId}/version-manifest/:
+  /minecraft-versions/version/{versionId}/version-manifest/:
     get:
       parameters:
         - name: versionId
@@ -62,6 +62,40 @@ paths:
                   schema:
                     enum:
                       - http://dummy
+  /neoforge-versions/version/{versionId}/launcher-manifest/:
+    get:
+      parameters:
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+      operationId: getNeoForgeVersionLauncherManifest
+      description: Gets the Vanilla Launcher version manifest for this NeoForge version.
+      responses:
+        200:
+          description: The Vanilla Launcher version manifest for this version.
+          content:
+            application/json:
+              schema:
+                type: object
+  /neoforge-versions/version/{versionId}/installer-profile/:
+    get:
+      parameters:
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+      operationId: getNeoForgeVersionInstallerProfile
+      description: Gets the profile used by the legacy installer for this NeoForge version.
+      responses:
+        200:
+          description: The legacy installer profile for this version.
+          content:
+            application/json:
+              schema:
+                type: object
 components:
   schemas:
     MinecraftVersionSummary:

@@ -12,7 +12,7 @@
             <tr>
                 <th>Version</th>
                 <th>Minecraft Version</th>
-                <th>Release Time</th>
+                <th>Released</th>
             </tr>
             </thead>
             <tbody>

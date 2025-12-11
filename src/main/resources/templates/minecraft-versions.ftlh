@@ -13,7 +13,7 @@
                 <th>Version</th>
                 <th>Type</th>
                 <th>Java Version</th>
-                <th>Release Time</th>
+                <th>Released</th>
             </tr>
             </thead>
             <tbody>
