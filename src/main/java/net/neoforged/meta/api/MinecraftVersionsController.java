@@ -64,11 +64,13 @@ public class MinecraftVersionsController implements MinecraftVersionsApi {
             return ResponseEntity.notFound().build();
         }
 
-        var details = new MinecraftVersionDetails();
-        details.setVersion(version.getVersion());
-        details.setType(version.getType());
-        details.setReleased(version.getReleased().atOffset(ZoneOffset.UTC));
-        details.setJavaVersion(version.getJavaVersion());
+        var details = new MinecraftVersionDetails(
+                version.getVersion(),
+                version.getType(),
+                version.getReleased().atOffset(ZoneOffset.UTC),
+                version.getLastModified().atOffset(ZoneOffset.UTC),
+                version.getJavaVersion()
+        );
         return ResponseEntity.ok(details);
     }
 
