@@ -6,6 +6,18 @@ A JSON-based HTTP API for querying metadata about NeoForge and Minecraft version
 
 See [meta.yaml](./meta.yaml).
 
+## Database
+
+The service uses SQLite to store its data.
+
+## Indexing
+
+The service indexes Minecraft and NeoForge versions, but is aimed at indexing all of our released software components.
+
+Each Maven component that the service should index must be listed in the application configuration file. It allows
+specifying groupId/artifactId, which repository the artifacts are published to, and special rules which artifacts
+are expected for each version range of the component, to accommodate the set of published artifacts changing over time.
+
 ## Authentication
 
 The application implements dual authentication strategies depending on the access pattern. API endpoints under `/v1/**`
