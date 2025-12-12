@@ -1,7 +1,6 @@
 package net.neoforged.meta.api;
 
 import net.neoforged.meta.db.MinecraftVersionDao;
-import net.neoforged.meta.db.NeoForgeVersion;
 import net.neoforged.meta.generated.api.MinecraftVersionsApi;
 import net.neoforged.meta.generated.model.MinecraftVersionDetails;
 import net.neoforged.meta.generated.model.MinecraftVersionSummary;
@@ -14,16 +13,15 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
-public class MinecraftVersionsController implements MinecraftVersionsApi {
+public class MinecraftVersionsApiController implements MinecraftVersionsApi {
 
     private final MinecraftVersionDao minecraftVersionDao;
     private final NeoForgeVersionService neoForgeVersionService;
 
-    public MinecraftVersionsController(MinecraftVersionDao minecraftVersionDao,
-                                       NeoForgeVersionService neoForgeVersionService) {
+    public MinecraftVersionsApiController(MinecraftVersionDao minecraftVersionDao,
+                                          NeoForgeVersionService neoForgeVersionService) {
         this.minecraftVersionDao = minecraftVersionDao;
         this.neoForgeVersionService = neoForgeVersionService;
     }

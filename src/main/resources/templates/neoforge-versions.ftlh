@@ -19,10 +19,10 @@
             <tbody>
             <#list versions as version>
                 <tr>
-                    <td><a href="/ui/components/${version.groupId?url}/${version.artifactId?url}/versions/${version.version?url}">${version.version}</a></td>
+                    <td><a href="/ui/neoforge-versions/version/${version.version?url}">${version.version}</a></td>
                     <td><a href="/ui/minecraft-versions/version/${version.minecraftVersion.version?url}">${version.minecraftVersion.version}</a></td>
                     <td><#if version.released??>${version.released}<#else>-</#if></td>
-                    <td class="changelog"><#if version.releaseNotes??>${version.releaseNotes.html?no_esc}</#if></td>
+                    <td class="release-notes"><#if version.releaseNotes??>${version.releaseNotes.html?no_esc}</#if></td>
                 </tr>
             </#list>
             </tbody>

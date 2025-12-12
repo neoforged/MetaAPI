@@ -18,14 +18,14 @@ import java.time.ZoneOffset;
 import java.util.List;
 
 @RestController
-public class NeoForgeVersionsController implements NeoforgeVersionsApi {
-    private static final Logger LOG = LoggerFactory.getLogger(NeoForgeVersionsController.class);
+public class NeoForgeVersionsApiController implements NeoforgeVersionsApi {
+    private static final Logger LOG = LoggerFactory.getLogger(NeoForgeVersionsApiController.class);
 
     private final NeoForgeVersionService neoForgeVersionService;
     private final MetaApiProperties apiProperties;
 
-    public NeoForgeVersionsController(NeoForgeVersionService neoForgeVersionService,
-                                      MetaApiProperties apiProperties) {
+    public NeoForgeVersionsApiController(NeoForgeVersionService neoForgeVersionService,
+                                         MetaApiProperties apiProperties) {
         this.neoForgeVersionService = neoForgeVersionService;
         this.apiProperties = apiProperties;
     }

@@ -234,10 +234,12 @@ footer {
 }
 
 #neoForgeVersions {
-    .changelog {
+    .release-notes {
         white-space: nowrap;
         max-width: 100px;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        &, p {
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
     }
 }

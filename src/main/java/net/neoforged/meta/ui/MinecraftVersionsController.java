@@ -14,7 +14,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@Controller("uiVersionsController")
+@Controller
 public class MinecraftVersionsController {
     private final MinecraftVersionDao minecraftVersionDao;
     private final NeoForgeVersionService neoForgeVersionService;
