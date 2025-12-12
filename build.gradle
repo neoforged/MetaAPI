@@ -31,7 +31,7 @@ jib {
         image = project.docker_base_image
     }
     to {
-        image = 'ghcr.io/neoforged/meta-api'
+        image = 'ghcr.io/neoforged/metaapi'
         tags = dockerMetadataJson.map { new HashSet<String>(it['tag-names']) }
         auth {
             username = providers.environmentVariable("GH_USERNAME")
