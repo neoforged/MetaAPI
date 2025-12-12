@@ -1,7 +1,7 @@
 package net.neoforged.meta.api;
 
 import net.neoforged.meta.config.MetaApiProperties;
-import net.neoforged.meta.db.SoftwareComponentChangelog;
+import net.neoforged.meta.db.SoftwareComponentReleaseNotes;
 import net.neoforged.meta.generated.api.NeoforgeVersionsApi;
 import net.neoforged.meta.generated.model.NeoForgeVersionDetails;
 import net.neoforged.meta.generated.model.NeoForgeVersionSummary;
@@ -88,8 +88,9 @@ public class NeoForgeVersionsController implements NeoforgeVersionsApi {
         )).toList();
 
         ReleaseNotes releaseNotes = null;
-        if (version.getChangelog() != null) {
-            releaseNotes = convert(version.getChangelog());
+        if (version.getReleaseNotes() != null) {
+            SoftwareComponentReleaseNotes releaseNotes1 = version.getReleaseNotes();
+            releaseNotes = new ReleaseNotes(releaseNotes1.getText(), releaseNotes1.getMarkdown());
         }
 
         var details = new NeoForgeVersionDetails(
@@ -104,12 +105,6 @@ public class NeoForgeVersionsController implements NeoforgeVersionsApi {
         );
 
         return ResponseEntity.ok(details);
-    }
-
-    private ReleaseNotes convert(SoftwareComponentChangelog changelog) {
-        var markdownText = changelog.getChangelog();
-        markdownText = markdownText.replaceAll("#([1-9]\\d*)", "[#$1](https://github.com/neoforged/NeoForge/issues/$1)");
-        return new ReleaseNotes(changelog.getChangelog(), markdownText);
     }
 
     @Override

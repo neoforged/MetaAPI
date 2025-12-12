@@ -1,7 +1,6 @@
 package net.neoforged.meta.db;
 
 import org.jspecify.annotations.Nullable;
-import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -34,7 +33,7 @@ public interface SoftwareComponentVersionDao extends JpaRepository<SoftwareCompo
      * @param artifactId The Maven artifact ID
      * @return List of all versions for this artifact
      */
-    @Query("select v.version, v.released, v.discovered, v.repository, size(v.warnings), size(v.artifacts), v.changelog from SoftwareComponentVersion v where v.groupId = :groupId and v.artifactId = :artifactId order by v.released desc")
+    @Query("select v.version, v.released, v.discovered, v.repository, size(v.warnings), size(v.artifacts), v.releaseNotes from SoftwareComponentVersion v where v.groupId = :groupId and v.artifactId = :artifactId order by v.released desc")
     List<Summary> findSummaryByGA(String groupId, String artifactId);
 
     record Summary(String version,
@@ -43,7 +42,7 @@ public interface SoftwareComponentVersionDao extends JpaRepository<SoftwareCompo
                    String repository,
                    int warningCount,
                    int artifactCount,
-                   @Nullable SoftwareComponentChangelog changelog) {
+                   @Nullable SoftwareComponentReleaseNotes releaseNotes) {
     }
 
     /**

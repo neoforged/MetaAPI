@@ -10,7 +10,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Inheritance;
 import jakarta.persistence.InheritanceType;
-import jakarta.persistence.NamedEntityGraph;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
@@ -88,7 +87,7 @@ public class SoftwareComponentVersion {
 
     @OneToOne(mappedBy = "componentVersion", cascade = {CascadeType.PERSIST, CascadeType.REMOVE})
     @Nullable
-    private SoftwareComponentChangelog changelog;
+    private SoftwareComponentReleaseNotes releaseNotes;
 
     @OneToMany(mappedBy = "componentVersion", cascade = {CascadeType.PERSIST, CascadeType.REMOVE})
     private List<SoftwareComponentArtifact> artifacts = new ArrayList<>();
@@ -176,12 +175,12 @@ public class SoftwareComponentVersion {
         this.artifacts = artifacts;
     }
 
-    public @Nullable SoftwareComponentChangelog getChangelog() {
-        return changelog;
+    public @Nullable SoftwareComponentReleaseNotes getReleaseNotes() {
+        return releaseNotes;
     }
 
-    public void setChangelog(@Nullable SoftwareComponentChangelog changelog) {
-        this.changelog = changelog;
+    public void setReleaseNotes(@Nullable SoftwareComponentReleaseNotes changelog) {
+        this.releaseNotes = changelog;
     }
 
     @Nullable

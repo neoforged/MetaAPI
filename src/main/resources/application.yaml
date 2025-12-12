@@ -18,6 +18,7 @@ meta-api:
     - maven-repository-id: releases
       group-id: net.neoforged
       artifact-id: neoforge
+      github-repository: neoforged/NeoForge
       publication-rules:
           # No Gradle ".module" metadata in these versions
           - version-ranges:
@@ -48,6 +49,7 @@ meta-api:
     - maven-repository-id: releases
       group-id: net.neoforged
       artifact-id: forge
+      github-repository: neoforged/NeoForge
       publication-rules:
           # No Gradle ".module" metadata was ever published for 1.20.1 versions
           - artifacts:

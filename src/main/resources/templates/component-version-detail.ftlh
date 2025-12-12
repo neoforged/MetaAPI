@@ -99,7 +99,11 @@
             </tr>
             <tr>
                 <th style="width: 200px;" scope="row">Changelog</th>
-                <td><#if details.changelog??>${details.changelog.changelog}</#if></td>
+                <td><#if details.releaseNotes??>${details.releaseNotes.html?no_esc}</#if></td>
+            </tr>
+            <tr>
+                <th style="width: 200px;" scope="row">Original Changelog</th>
+                <td><pre><#if details.releaseNotes??>${details.releaseNotes.originalText}</#if></pre></td>
             </tr>
             <tr>
                 <th style="width: 200px;" scope="row">Artifacts</th>

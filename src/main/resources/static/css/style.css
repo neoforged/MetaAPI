@@ -104,7 +104,6 @@ li {
 
 code {
     background: #f8f9fa;
-    padding: 0.2rem 0.5rem;
     border-radius: 3px;
     font-family: 'Courier New', monospace;
     font-size: 0.9rem;
@@ -231,5 +230,14 @@ footer {
         color: #145222;
         background-color: #d1f0d9;
         border-color: #c2ebcb;
+    }
+}
+
+#neoForgeVersions {
+    .changelog {
+        white-space: nowrap;
+        max-width: 100px;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 }

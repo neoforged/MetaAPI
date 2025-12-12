@@ -11,16 +11,18 @@
             <thead>
             <tr>
                 <th>Version</th>
-                <th>Minecraft Version</th>
+                <th>Minecraft</th>
                 <th>Released</th>
+                <th>Changelog</th>
             </tr>
             </thead>
             <tbody>
             <#list versions as version>
                 <tr>
                     <td><a href="/ui/components/${version.groupId?url}/${version.artifactId?url}/versions/${version.version?url}">${version.version}</a></td>
-                    <td>${version.minecraftVersion.version}</td>
+                    <td><a href="/ui/minecraft-versions/version/${version.minecraftVersion.version?url}">${version.minecraftVersion.version}</a></td>
                     <td><#if version.released??>${version.released}<#else>-</#if></td>
+                    <td class="changelog"><#if version.releaseNotes??>${version.releaseNotes.html?no_esc}</#if></td>
                 </tr>
             </#list>
             </tbody>

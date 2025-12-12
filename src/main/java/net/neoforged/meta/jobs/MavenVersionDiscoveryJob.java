@@ -8,7 +8,7 @@ import net.neoforged.meta.db.SoftwareComponentVersionDao;
 import net.neoforged.meta.db.MinecraftVersionDao;
 import net.neoforged.meta.db.NeoForgeVersion;
 import net.neoforged.meta.db.SoftwareComponentArtifact;
-import net.neoforged.meta.db.SoftwareComponentChangelog;
+import net.neoforged.meta.db.SoftwareComponentReleaseNotes;
 import net.neoforged.meta.db.SoftwareComponentVersion;
 import net.neoforged.meta.event.EventService;
 import net.neoforged.meta.extract.ChangelogExtractor;
@@ -199,19 +199,23 @@ public class MavenVersionDiscoveryJob implements Runnable {
         // Post-Process optional information
         var changelog = versionEntity.getArtifact("changelog", "txt");
         if (changelog != null) {
-            parseChangelog(versionEntity, changelog);
+            parseChangelog(component, versionEntity, changelog);
         }
     }
 
-    private void parseChangelog(SoftwareComponentVersion versionEntity, SoftwareComponentArtifact changelogArtifact) {
+    private void parseChangelog(SoftwareComponentProperties properties,
+                                SoftwareComponentVersion versionEntity,
+                                SoftwareComponentArtifact changelogArtifact) {
         var changelogBody = mavenRepositories.getArtifact(versionEntity.getRepository(), versionEntity.getGroupId(), versionEntity.getArtifactId(), versionEntity.getVersion(), changelogArtifact.getClassifier(), changelogArtifact.getExtension());
 
         var changelogEntry = ChangelogExtractor.extract(changelogBody);
         if (changelogEntry != null) {
-            var changelogEntity = new SoftwareComponentChangelog();
+            var changelogEntity = new SoftwareComponentReleaseNotes();
             changelogEntity.setComponentVersion(versionEntity);
-            changelogEntity.setChangelog(changelogEntry);
-            versionEntity.setChangelog(changelogEntity);
+            changelogEntity.setOriginalText(changelogEntry);
+            changelogEntity.setText(ChangelogExtractor.extractText(properties, changelogEntry));
+            changelogEntity.setMarkdown(ChangelogExtractor.extractMarkdown(properties, changelogEntry));
+            versionEntity.setReleaseNotes(changelogEntity);
         } else {
             versionEntity.addWarning("Couldn't find changelog entry.");
         }

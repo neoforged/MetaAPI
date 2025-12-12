@@ -39,7 +39,7 @@ class ServerArgFileExtractorTest {
     }
 
     private String readTestFile(String filename) throws IOException {
-        try (var in = ChangelogExtractorTest.class.getResourceAsStream("/" + filename)) {
+        try (var in = ServerArgFileExtractorTest.class.getResourceAsStream("/" + filename)) {
             return new String(in.readAllBytes(), StandardCharsets.UTF_8);
         }
     }

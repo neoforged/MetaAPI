@@ -1,0 +1,14 @@
+1.20.x Changelog
+47.1
+====
+ - 47.1.56 Add an AbstractWidget#onClick extension that provides the clicked button as context to the method (#49)
+ - 47.1.55 Fix air bubbles not regenerating - Closes #50
+ - 47.1.54 Major fixes for LivingBreathe/DrownEvent and other misc fixes for upstream code.
+           * Fixed erroneous LivingEntity.java.patch line.
+           * Fixed formatting for ForgeHooks.URL_PATTERN.
+           * Added documentation for LivingBreatheEvent and LivingDrownEvent
+           * Fixed an issue where the LivingBreatheEvent's implementation caused you to gain air while underwater.
+           * Fixed an issue where the LivingBreatheEvent's implementation caused entities to not be dismounted in water.
+           * Expanded the functionality of LivingDrownEvent to allow for controlling the damage amount and particle count.
+           * Sorted new exc entries.
+           * Minor style fixes.

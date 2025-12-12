@@ -3,6 +3,7 @@ package net.neoforged.meta.config;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -17,6 +18,13 @@ public class SoftwareComponentProperties {
 
     @Nullable
     private String mavenRepositoryId;
+
+    /**
+     * In the form: {@code organization/repository}.
+     */
+    @Nullable
+    @Pattern(regexp = "^\\w+/\\w+$")
+    private String githubRepository;
 
     @NotNull
     @Valid
@@ -44,6 +52,14 @@ public class SoftwareComponentProperties {
 
     public void setMavenRepositoryId(@Nullable String mavenRepositoryId) {
         this.mavenRepositoryId = mavenRepositoryId;
+    }
+
+    public @Nullable String getGithubRepository() {
+        return githubRepository;
+    }
+
+    public void setGithubRepository(@Nullable String githubRepository) {
+        this.githubRepository = githubRepository;
     }
 
     public List<SoftwareComponentPublicationPropertiesRule> getPublicationRules() {

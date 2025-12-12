@@ -55,7 +55,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-freemarker'
 	implementation 'org.springframework.boot:spring-boot-flyway'
     implementation 'tools.jackson.dataformat:jackson-dataformat-xml'
-
+	implementation 'org.commonmark:commonmark:0.27.0'
     implementation 'org.apache.maven:maven-artifact:4.0.0-rc-5'
 
 	implementation 'org.flywaydb:flyway-core'
