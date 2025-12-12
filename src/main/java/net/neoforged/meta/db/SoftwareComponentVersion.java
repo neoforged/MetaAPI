@@ -75,10 +75,16 @@ public class SoftwareComponentVersion {
     private Instant released;
 
     /**
-     * When this version was first discovered
+     * When this version was first discovered.
      */
     @Column(nullable = false)
-    private Instant discovered = Instant.now();
+    private Instant discovered;
+
+    /**
+     * When this version was last modified.
+     */
+    @Column(nullable = false)
+    private Instant lastModified;
 
     @OneToOne(mappedBy = "componentVersion", cascade = {CascadeType.PERSIST, CascadeType.REMOVE})
     @Nullable
@@ -152,6 +158,14 @@ public class SoftwareComponentVersion {
 
     public void setDiscovered(Instant discovered) {
         this.discovered = discovered;
+    }
+
+    public Instant getLastModified() {
+        return lastModified;
+    }
+
+    public void setLastModified(Instant lastModified) {
+        this.lastModified = lastModified;
     }
 
     public List<SoftwareComponentArtifact> getArtifacts() {

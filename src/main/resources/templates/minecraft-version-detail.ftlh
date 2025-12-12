@@ -62,9 +62,12 @@
             <tr>
                 <th>Download</th>
                 <td>
-                    <a href="/v1/versions/minecraft/${version.version?url}/version-manifest/" class="btn"
+                    <a href="/v1/minecraft-versions/version/${version.version?url}/version-manifest/" class="btn"
                        download="version-manifest-${version.version?url}.json">
                         Download Manifest JSON
+                    </a>
+                    <a href="/v1/minecraft-versions/version/${version.version?url}/version-manifest/" class="btn">
+                        View Manifest JSON
                     </a>
                 </td>
             </tr>
@@ -76,21 +79,13 @@
             <thead>
             <tr>
                 <th>Artifact</th>
-                <th>Type</th>
                 <th>Size</th>
-                <th>URL</th>
             </tr>
             </thead>
             <tbody>
             <#list version.libraries as library>
                 <tr>
-                    <td>${library.mavenComponentIdString}</td>
-                    <td>
-                        <#if library.clientClasspath><span class="role-badge">Client CP</span></#if>
-                        <#if library.download><span class="role-badge">Download</span></#if>
-                        <#if library.clientInstaller><span class="role-badge">Client Install</span></#if>
-                        <#if library.serverInstaller><span class="role-badge">Server Install</span></#if>
-                    </td>
+                    <td><a href="${library.url}" target="_blank" download>${library.mavenComponentIdString}</a></td>
                     <td>
                         <#if library.size??>
                             <#assign sizeKb = library.size / 1024>
@@ -102,10 +97,6 @@
                         <#else>
                             -
                         </#if>
-                    </td>
-                    <td>
-                        <a href="${library.url?url}" target="_blank" style="font-size: 0.8rem;">Download</a><br>
-                        <span class="muted">SHA1: ${library.sha1Checksum}</span>
                     </td>
                 </tr>
             </#list>

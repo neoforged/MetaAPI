@@ -62,6 +62,36 @@ paths:
                   schema:
                     enum:
                       - http://dummy
+  /neoforge-versions/:
+    get:
+      operationId: getNeoForgeVersions
+      description: Gets all available NeoForge versions
+      responses:
+        200:
+          description: The list of available NeoForge versions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NeoForgeVersionSummary'
+  /neoforge-versions/version/{versionId}/:
+    get:
+      parameters:
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+      operationId: getNeoForgeVersionDetails
+      description: Gets the details for a specific NeoForge version
+      responses:
+        200:
+          description: Details about a specific NeoForge version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NeoForgeVersionDetails'
   /neoforge-versions/version/{versionId}/launcher-manifest/:
     get:
       parameters:
@@ -96,6 +126,40 @@ paths:
             application/json:
               schema:
                 type: object
+  /neoforge-versions/version/{versionId}/server-args-windows/:
+    get:
+      parameters:
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+      operationId: getNeoForgeServerArgsWindows
+      description: Gets the command line arguments for launching the server on Windows
+      responses:
+        200:
+          description: The command line arguments for launching the server on Windows
+          content:
+            text/plain:
+              schema:
+                type: string
+  /neoforge-versions/version/{versionId}/server-args-unix/:
+    get:
+      parameters:
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+      operationId: getNeoForgeServerArgsUnix
+      description: Gets the command line arguments for launching the server on Linux/Mac
+      responses:
+        200:
+          description: The command line arguments for launching the server on Linux/Mac
+          content:
+            text/plain:
+              schema:
+                type: string
 components:
   schemas:
     MinecraftVersionSummary:
@@ -105,6 +169,7 @@ components:
         - version
         - type
         - released
+        - last_modified
         - latest_neoforge_version
       additionalProperties: true
       properties:
@@ -116,9 +181,11 @@ components:
         released:
           description: The timestamp when this version was released.
           format: date-time
-          type:
-            - string
-            - 'null'
+          type: string
+        last_modified:
+          description: The timestamp when information about this version was last modified by the meta api.
+          format: date-time
+          type: string
         latest_neoforge_version:
           description: The latest available version of NeoForge for this Minecraft version. This property being non-null indicates that NeoForge has at least one version for this Minecraft version.
           type:
@@ -131,7 +198,9 @@ components:
         - version
         - type
         - released
+        - last_modified
         - javaVersion
+      additionalProperties: true
       properties:
         version:
           type: string
@@ -141,9 +210,136 @@ components:
         released:
           description: The timestamp when this version was released.
           format: date-time
-          type:
-            - string
-            - 'null'
+          type: string
+        last_modified:
+          description: The timestamp when information about this version was last modified by the meta api.
+          format: date-time
+          type: string
         javaVersion:
           description: The major Java version required to run this Minecraft version.
           type: integer
+
+    NeoForgeVersionSummary:
+      description: Summarizes an available NeoForge version
+      type: object
+      required:
+        - version
+        - released
+        - last_modified
+        - minecraft_version
+      additionalProperties: true
+      properties:
+        version:
+          type: string
+        released:
+          description: The timestamp when this version was released.
+          format: date-time
+          type: string
+        last_modified:
+          description: The timestamp when information about this version was last modified by the meta api.
+          format: date-time
+          type: string
+        minecraft_version:
+          description: The Minecraft version this NeoForge version is compatible with.
+          type: string
+    NeoForgeVersionDetails:
+      description: Details about a specific NeoForge version
+      allOf:
+        - $ref: "#/components/schemas/SoftwareComponentVersionDetails"
+        - type: object
+          required:
+            - minecraft_version
+          additionalProperties: true
+          properties:
+            minecraft_version:
+              description: The Minecraft version this NeoForge version is compatible with.
+              type: string
+    SoftwareComponentVersionDetails:
+      description: Details about a specific version of a software component (which is identified by group and artifact id)
+      type: object
+      required:
+        - group_id
+        - artifact_id
+        - version
+        - released
+        - last_modified
+        - artifacts
+        - release_notes
+      additionalProperties: true
+      properties:
+        group_id:
+          type: string
+        artifact_id:
+          type: string
+        version:
+          type: string
+        released:
+          description: The timestamp when this version was released.
+          format: date-time
+          type: string
+        last_modified:
+          description: The timestamp when information about this version was last modified by the meta api.
+          format: date-time
+          type: string
+        artifacts:
+          description: The artifacts available for this component version
+          type: array
+          items:
+            $ref: "#/components/schemas/SoftwareComponentArtifact"
+        release_notes:
+          description: Describes the changes released in this version
+          oneOf:
+            - $ref: "#/components/schemas/ReleaseNotes"
+            - type: 'null'
+    SoftwareComponentArtifact:
+      description: A single artifact that belongs to a software component version. Artifacts are unique identified within a version by their classifier and extension.
+      type: object
+      required:
+        - classifier
+        - extension
+        - size
+        - last_modified
+        - url
+        - md5_checksum
+        - sha1_checksum
+        - sha256_checksum
+        - sha512_checksum
+      additionalProperties: true
+      properties:
+        classifier:
+          type:
+            - string
+            - 'null'
+        extension:
+          description: A null extension indicates the file has no file extension, not the usual Maven default of 'jar'.
+          type:
+            - string
+            - 'null'
+        size:
+          type: integer
+          format: int64
+        last_modified:
+          format: date-time
+          type: string
+        url:
+          type: string
+        md5_checksum:
+          type: string
+        sha1_checksum:
+          type: string
+        sha256_checksum:
+          type: string
+        sha512_checksum:
+          type: string
+    ReleaseNotes:
+      description: Release notes for a software version
+      type: object
+      additionalProperties: true
+      required:
+        - text
+        - markdown
+      properties:
+        text:
+          type: string
+        markdown:
+          type: string

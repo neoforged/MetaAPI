@@ -1,8 +1,11 @@
 package net.neoforged.meta.manifests.version;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 import java.util.Map;
 import java.util.Objects;
 
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
 public record Rule(
         RuleAction action,
         Map<String, Boolean> features,

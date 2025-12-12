@@ -41,14 +41,15 @@ public class MinecraftVersionsController implements MinecraftVersionsApi {
 
         var result = new ArrayList<MinecraftVersionSummary>();
         for (var version : minecraftVersionDao.findAll()) {
-            var summary = new MinecraftVersionSummary();
-            summary.setVersion(version.getVersion());
-            summary.setReleased(version.getReleased().atOffset(ZoneOffset.UTC));
-            summary.setType(version.getType());
             var neoForgeVersion = latestNeoForgeVersions.get(version);
-            if (neoForgeVersion != null) {
-                summary.setLatestNeoforgeVersion(neoForgeVersion.getVersion());
-            }
+
+            var summary = new MinecraftVersionSummary(
+                    version.getVersion(),
+                    version.getType(),
+                    version.getReleased().atOffset(ZoneOffset.UTC),
+                    version.getLastModified().atOffset(ZoneOffset.UTC),
+                    neoForgeVersion != null ? neoForgeVersion.getVersion() : null
+            );
             result.add(summary);
         }
 

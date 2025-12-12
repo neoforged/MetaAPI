@@ -23,9 +23,24 @@ public sealed interface UnresolvedArgument {
         }
 
         @Override
-        public void serialize(UnresolvedArgument value, JsonGenerator gen, SerializationContext provider) throws JacksonException {
+        public void serialize(UnresolvedArgument value, JsonGenerator gen, SerializationContext ctxt) throws JacksonException {
             switch (value) {
-                case ConditionalValue conditionalValue -> provider.writeValue(gen, conditionalValue);
+                case ConditionalValue conditionalValue -> {
+
+                    // Manually deserialize ConditionalValue to avoid infinite recursion
+                    // (readTreeAsValue would trigger this deserializer again)
+                    gen.writeStartObject();
+                    gen.writeName("rules");
+                    gen.writePOJO(conditionalValue.rules());
+                    // ctxt.writeValue(gen, conditionalValue.rules());
+                    gen.writeName("value");
+                    if (conditionalValue.value().size() == 1) {
+                        gen.writeString(conditionalValue.value().getFirst());
+                    } else {
+                        ctxt.writeValue(gen, conditionalValue.value());
+                    }
+                    gen.writeEndObject();
+                }
                 case Value(String stringValue) -> gen.writeString(stringValue);
                 case null -> gen.writeNull();
             }

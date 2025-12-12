@@ -7,7 +7,6 @@ import net.neoforged.meta.config.SoftwareComponentPublicationPropertiesRule;
 import net.neoforged.meta.db.SoftwareComponentVersionDao;
 import net.neoforged.meta.db.MinecraftVersionDao;
 import net.neoforged.meta.db.NeoForgeVersion;
-import net.neoforged.meta.db.NeoForgeVersionDao;
 import net.neoforged.meta.db.SoftwareComponentArtifact;
 import net.neoforged.meta.db.SoftwareComponentChangelog;
 import net.neoforged.meta.db.SoftwareComponentVersion;
@@ -125,35 +124,41 @@ public class MavenVersionDiscoveryJob implements Runnable {
             var neoForgeVersion = new NeoForgeVersion();
             discoverBaseVersion(component, version, versionEntity = neoForgeVersion);
 
-            // We need to parse information found in the installer jar, for which we need to download the jar file
-            var installerArtifact = versionEntity.getArtifact("installer", "jar");
-            if (installerArtifact == null) {
-                throw new IllegalStateException("Expected installer, but is missing.");
-            }
-
-            byte[] installerContent = mavenRepositories.getArtifact(versionEntity.getRepository(), versionEntity.getGroupId(), versionEntity.getArtifactId(), versionEntity.getVersion(), installerArtifact.getClassifier(), installerArtifact.getExtension());
-            var versionMetadata = NeoForgeVersionExtractor.extract(installerContent);
-            neoForgeVersion.setReleased(versionMetadata.releaseTime()); // The time in the profile may be more accurate
-
-            var minecraftVersion = minecraftVersionDao.getByVersion(versionMetadata.minecraftVersion());
-            if (minecraftVersion == null) {
-                throw new IllegalStateException("NeoForge version " + version + " references unknown Minecraft version " + versionMetadata.minecraftVersion()); // TODO -> Record as parsing failure
-            }
-
-            neoForgeVersion.setMinecraftVersion(minecraftVersion);
-            neoForgeVersion.setInstallerProfile(versionMetadata.installerProfile());
-            neoForgeVersion.setLauncherProfile(versionMetadata.launcherProfile());
-            neoForgeVersion.setLauncherProfileId(versionMetadata.launcherProfileId());
-            neoForgeVersion.setLibraries(versionMetadata.libraries());
-            neoForgeVersion.setServerArgsUnix(versionMetadata.serverArgsUnix());
-            neoForgeVersion.setServerArgsWindows(versionMetadata.serverArgsWindows());
+            discoverNeoForgeVersion(version, neoForgeVersion);
         } else {
             discoverBaseVersion(component, version, versionEntity = new SoftwareComponentVersion());
         }
 
+        versionEntity.setDiscovered(Instant.now());
+        versionEntity.setLastModified(versionEntity.getDiscovered());
         versionDao.saveAndFlush(versionEntity);
 
         logger.info("Discovered new version: {}:{}:{} ({} artifacts)", component.getMavenRepositoryId(), component.getArtifactId(), version, versionEntity.getArtifacts().size());
+    }
+
+    private void discoverNeoForgeVersion(String version, NeoForgeVersion neoForgeVersion) {
+        // We need to parse information found in the installer jar, for which we need to download the jar file
+        var installerArtifact = neoForgeVersion.getArtifact("installer", "jar");
+        if (installerArtifact == null) {
+            throw new IllegalStateException("Expected installer, but is missing.");
+        }
+
+        byte[] installerContent = mavenRepositories.getArtifact(neoForgeVersion.getRepository(), neoForgeVersion.getGroupId(), neoForgeVersion.getArtifactId(), neoForgeVersion.getVersion(), installerArtifact.getClassifier(), installerArtifact.getExtension());
+        var versionMetadata = NeoForgeVersionExtractor.extract(installerContent);
+        neoForgeVersion.setReleased(versionMetadata.releaseTime()); // The time in the profile may be more accurate
+
+        var minecraftVersion = minecraftVersionDao.getByVersion(versionMetadata.minecraftVersion());
+        if (minecraftVersion == null) {
+            throw new IllegalStateException("NeoForge version " + version + " references unknown Minecraft version " + versionMetadata.minecraftVersion()); // TODO -> Record as parsing failure
+        }
+
+        neoForgeVersion.setMinecraftVersion(minecraftVersion);
+        neoForgeVersion.setInstallerProfile(versionMetadata.installerProfile());
+        neoForgeVersion.setLauncherProfile(versionMetadata.launcherProfile());
+        neoForgeVersion.setLauncherProfileId(versionMetadata.launcherProfileId());
+        neoForgeVersion.setLibraries(versionMetadata.libraries());
+        neoForgeVersion.setClientStartup(versionMetadata.clientStartup());
+        neoForgeVersion.setServerStartup(versionMetadata.serverStartup());
     }
 
     private void discoverBaseVersion(SoftwareComponentProperties component,

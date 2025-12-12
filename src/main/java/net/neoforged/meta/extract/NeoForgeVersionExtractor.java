@@ -1,8 +1,13 @@
 package net.neoforged.meta.extract;
 
+import net.neoforged.meta.db.DiscoveryLogMessage;
 import net.neoforged.meta.db.ReferencedLibrary;
+import net.neoforged.meta.db.StartupArgument;
+import net.neoforged.meta.db.StartupArguments;
 import net.neoforged.meta.manifests.installer.InstallerProfile;
 import net.neoforged.meta.manifests.version.MinecraftVersionManifest;
+import net.neoforged.meta.manifests.version.Rule;
+import net.neoforged.meta.manifests.version.UnresolvedArgument;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,11 +22,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
+import java.util.function.Consumer;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import java.util.zip.ZipFile;
 
 public final class NeoForgeVersionExtractor {
     private static final Logger logger = LoggerFactory.getLogger(NeoForgeVersionExtractor.class);
+    static final String CLASSPATH_SEPARATOR = "${classpath_separator}";
 
     private NeoForgeVersionExtractor() {
     }
@@ -33,8 +41,9 @@ public final class NeoForgeVersionExtractor {
             String launcherProfile,
             String installerProfile,
             List<ReferencedLibrary> libraries,
-            String serverArgsUnix,
-            String serverArgsWindows
+            StartupArguments clientStartup,
+            StartupArguments serverStartup,
+            List<DiscoveryLogMessage> warnings
     ) {
     }
 
@@ -44,6 +53,7 @@ public final class NeoForgeVersionExtractor {
             installer = Files.createTempFile("installer", "zip");
             Files.write(installer, installerJarContent);
 
+            List<DiscoveryLogMessage> warnings = new ArrayList<>();
             String installerProfileText, versionManifestText;
             InstallerProfile installerProfile;
             MinecraftVersionManifest versionManifest;
@@ -76,25 +86,61 @@ public final class NeoForgeVersionExtractor {
                 }
             }
 
-            // Collect libraries that are declared by the installer
+            // Consolidate unix+windows server arguments
+            var clientStartup = new StartupArguments();
+            clientStartup.setJvmArgs(convert(versionManifest.arguments().jvm()));
+            clientStartup.setProgramArgs(convert(versionManifest.arguments().game()));
+            clientStartup.setMainClass(versionManifest.mainClass());
+            var serverArgFiles = ServerArgFileExtractor.consolidateServerArgs(serverUnixArgs, serverWindowsArgs);
+            var serverStartup = new StartupArguments();
+            serverStartup.setJvmArgs(convert(serverArgFiles.arguments().jvm()));
+            serverStartup.setProgramArgs(convert(serverArgFiles.arguments().game()));
+            serverStartup.setMainClass(serverArgFiles.mainClass());
+
+            // Collect libraries that are declared by the game profile (classpath)
             var libraries = new HashMap<String, ReferencedLibrary>();
-            for (var library : installerProfile.getLibraries()) {
+            var librariesByPath = new HashMap<String, ReferencedLibrary>();
+            for (var library : versionManifest.libraries()) {
                 for (var referencedLibrary : ReferencedLibrary.of(library)) {
+                    libraries.put(referencedLibrary.getMavenComponentIdString(), referencedLibrary);
                     referencedLibrary.setClientClasspath(true);
-                    var previousLib = libraries.put(referencedLibrary.getMavenComponentIdString(), referencedLibrary);
-                    if (previousLib != null) {
-                        if (!previousLib.getSha1Checksum().equals(referencedLibrary.getSha1Checksum())) {
-                            throw new IllegalStateException("Duped library with different checksums: " + referencedLibrary.getMavenComponentIdString());
+                    librariesByPath.put(referencedLibrary.getMavenRepositoryPath(), referencedLibrary);
+                }
+            }
+
+            // Find libraries referenced in the module path, which was used on Minecraft before 1.21.10
+            var jvmArgsInOrder = versionManifest.arguments().jvm().stream().flatMap(NeoForgeVersionExtractor::streamPotentialValues).toList();
+            for (int i = 0; i < jvmArgsInOrder.size() - 1; i++) {
+                var arg = jvmArgsInOrder.get(i);
+                if ("-p".equals(arg) || "--module-path".equals(arg)) {
+                    var modulePath = jvmArgsInOrder.get(i + 1);
+                    var modulePathItems = modulePath.split(Pattern.quote(CLASSPATH_SEPARATOR));
+                    for (var modulePathItem : modulePathItems) {
+                        if (modulePathItem.startsWith("${library_directory}/")) {
+                            var relativePath = modulePathItem.substring("${library_directory}/".length());
+                            var referencedLib = librariesByPath.get(relativePath);
+                            if (referencedLib == null) {
+                                throw new IllegalStateException("Module path references path not in library list: " + relativePath);
+                            }
+                            referencedLib.setClientModulePath(true);
                         }
                     }
                 }
             }
 
-            // Collect libraries that are declared by the game profile (classpath)
-            for (var library : versionManifest.libraries()) {
+            // Collect libraries that are declared by the installer
+            for (var library : installerProfile.getLibraries()) {
                 for (var referencedLibrary : ReferencedLibrary.of(library)) {
-                    referencedLibrary = Objects.requireNonNullElse(libraries.putIfAbsent(referencedLibrary.getMavenComponentIdString(), referencedLibrary), referencedLibrary);
-                    referencedLibrary.setClientClasspath(true);
+                    var previousLib = libraries.putIfAbsent(referencedLibrary.getMavenComponentIdString(), referencedLibrary);
+                    if (previousLib != null) {
+                        if (!previousLib.getSha1Checksum().equals(referencedLibrary.getSha1Checksum())) {
+                            throw new IllegalStateException("Duped library with different checksums: " + referencedLibrary.getMavenComponentIdString());
+                        }
+                        referencedLibrary = previousLib;
+                    }
+
+                    referencedLibrary.setClientInstaller(clientProcessorGav.contains(referencedLibrary.getMavenComponentIdString()));
+                    referencedLibrary.setServerInstaller(serverProcessorGav.contains(referencedLibrary.getMavenComponentIdString()));
                 }
             }
 
@@ -105,8 +151,9 @@ public final class NeoForgeVersionExtractor {
                     versionManifestText,
                     installerProfileText,
                     new ArrayList<>(libraries.values()),
-                    serverUnixArgs,
-                    serverWindowsArgs
+                    clientStartup,
+                    serverStartup,
+                    warnings
             );
         } catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -119,6 +166,24 @@ public final class NeoForgeVersionExtractor {
                 }
             }
         }
+    }
+
+    private static List<StartupArgument> convert(List<UnresolvedArgument> arguments) {
+        var result = new ArrayList<StartupArgument>();
+        for (var argument : arguments) {
+            switch (argument) {
+                case UnresolvedArgument.ConditionalValue _ -> throw new IllegalStateException("(Neo)Forge never had conditional args");
+                case UnresolvedArgument.Value value -> result.add(StartupArgument.common(value.value()));
+            }
+        }
+        return result;
+    }
+
+    private static Stream<String> streamPotentialValues(UnresolvedArgument argument) {
+        return switch (argument) {
+            case UnresolvedArgument.ConditionalValue conditionalValue -> conditionalValue.value().stream();
+            case UnresolvedArgument.Value value -> Stream.of(value.value());
+        };
     }
 
     private static String readEntryAsString(ZipFile zf, String name) throws IOException {

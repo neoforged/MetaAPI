@@ -24,7 +24,7 @@ public interface SoftwareComponentVersionDao extends JpaRepository<SoftwareCompo
     @Nullable
     SoftwareComponentVersion findByGAV(String groupId, String artifactId, String version);
 
-    @Query("from NeoForgeVersion")
+    @Query("from NeoForgeVersion order by released desc")
     List<NeoForgeVersion> findAllNeoForgeVersions();
 
     /**

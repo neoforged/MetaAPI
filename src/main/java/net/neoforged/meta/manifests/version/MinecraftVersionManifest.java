@@ -18,7 +18,7 @@ public record MinecraftVersionManifest(String id, Map<String, MinecraftDownload>
                                        String mainClass, MinecraftArguments arguments,
                                        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSSSSSSS", timezone = "UTC") Instant releaseTime) {
 
-    private static final ObjectMapper MAPPER = JsonMapper.builder()
+    public static final ObjectMapper MAPPER = JsonMapper.builder()
             .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
             .addModule(new SimpleModule().addDeserializer(Instant.class, new LenientInstantDeserializer()))
             .build();

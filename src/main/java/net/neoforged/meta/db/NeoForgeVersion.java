@@ -1,10 +1,14 @@
 package net.neoforged.meta.db;
 
+import jakarta.persistence.AssociationOverride;
+import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
+import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.Fetch;
@@ -39,23 +43,21 @@ public class NeoForgeVersion extends SoftwareComponentVersion {
     @Convert(converter = DeflateConverter.class)
     private String installerProfile;
 
-    /**
-     * Command-line arguments to launch a server on unix.
-     */
-    @Column(nullable = false, columnDefinition = "BLOB")
-    @Convert(converter = DeflateConverter.class)
-    private String serverArgsUnix;
-
-    /**
-     * Command-line arguments to launch a server on windows.
-     */
-    @Column(nullable = false, columnDefinition = "BLOB")
-    @Convert(converter = DeflateConverter.class)
-    private String serverArgsWindows;
-
     @ElementCollection
     @CollectionTable(name = "neoforge_version_libraries")
     private List<ReferencedLibrary> libraries = new ArrayList<>();
+
+    @Embedded
+    @AttributeOverride(name = "mainClass", column = @Column(name = "client_main_class"))
+    @AssociationOverride(name = "jvmArgs", joinTable = @JoinTable(name = "neoforge_client_jvm_args"))
+    @AssociationOverride(name = "programArgs", joinTable = @JoinTable(name = "neoforge_client_program_args"))
+    private StartupArguments clientStartup = new StartupArguments();
+
+    @Embedded
+    @AttributeOverride(name = "mainClass", column = @Column(name = "server_main_class"))
+    @AssociationOverride(name = "jvmArgs", joinTable = @JoinTable(name = "neoforge_server_jvm_args"))
+    @AssociationOverride(name = "programArgs", joinTable = @JoinTable(name = "neoforge_server_program_args"))
+    private StartupArguments serverStartup = new StartupArguments();
 
     public MinecraftVersion getMinecraftVersion() {
         return minecraftVersion;
@@ -97,19 +99,19 @@ public class NeoForgeVersion extends SoftwareComponentVersion {
         this.libraries = libraries;
     }
 
-    public String getServerArgsUnix() {
-        return serverArgsUnix;
+    public StartupArguments getClientStartup() {
+        return clientStartup;
     }
 
-    public void setServerArgsUnix(String serverArgsUnix) {
-        this.serverArgsUnix = serverArgsUnix;
+    public void setClientStartup(StartupArguments clientStartup) {
+        this.clientStartup = clientStartup;
     }
 
-    public String getServerArgsWindows() {
-        return serverArgsWindows;
+    public StartupArguments getServerStartup() {
+        return serverStartup;
     }
 
-    public void setServerArgsWindows(String serverArgsWindows) {
-        this.serverArgsWindows = serverArgsWindows;
+    public void setServerStartup(StartupArguments serverStartup) {
+        this.serverStartup = serverStartup;
     }
 }

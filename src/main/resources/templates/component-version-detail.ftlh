@@ -9,6 +9,10 @@
     <section>
         <h3>Component ${groupId}:${artifactId} Version ${version}</h3>
 
+        <#if neoForgeVersion??>
+            <p>Show <a href="/v1/neoforge-versions/version/${version?url}/">API</a> response.</p>
+        </#if>
+
         <h3>Version Information</h3>
         <table>
             <tbody>
@@ -65,6 +69,21 @@
                            class="btn btn-secondary">View</a>
                     </td>
                 </tr>
+                <tr>
+                    <th scope="row">Server Args</th>
+                    <td>
+                        <a href="/v1/neoforge-versions/version/${neoForgeVersion.version}/server-args-unix/"
+                           class="btn btn-secondary" download="unix_args_${neoForgeVersion.version?url}.txt">Download
+                            Unix</a>
+                        <a href="/v1/neoforge-versions/version/${neoForgeVersion.version}/server-args-unix/"
+                           class="btn btn-secondary">View Unix</a>
+                        <a href="/v1/neoforge-versions/version/${neoForgeVersion.version}/server-args-windows/"
+                           class="btn btn-secondary" download="unix_args_${neoForgeVersion.version?url}.txt">Download
+                            Windows</a>
+                        <a href="/v1/neoforge-versions/version/${neoForgeVersion.version}/server-args-windows/"
+                           class="btn btn-secondary">View Windows</a>
+                    </td>
+                </tr>
             </#if>
             <tr>
                 <th style="width: 200px;" scope="row">Repository</th>
@@ -119,25 +138,24 @@
 
         <#if neoForgeVersionLibraries??>
             <h3>Libraries (${neoForgeVersionLibraries?size})</h3>
-            <table>
+            <table id="libraries" class="display">
                 <thead>
                 <tr>
-                    <th>Artifact</th>
-                    <th>Type</th>
-                    <th>Size</th>
-                    <th>URL</th>
+                    <th rowspan="2">Artifact</th>
+                    <th rowspan="2">Size</th>
+                    <th colspan="4">Use</th>
+                </tr>
+                <tr>
+                    <th title="client classpath">CCP</th>
+                    <th title="client module-path">CMP</th>
+                    <th title="client installer">CI</th>
+                    <th title="server installer">SI</th>
                 </tr>
                 </thead>
                 <tbody>
                 <#list neoForgeVersionLibraries as library>
                     <tr>
-                        <td>${library.mavenComponentIdString}</td>
-                        <td>
-                            <#if library.clientClasspath><span class="role-badge">Client CP</span></#if>
-                            <#if library.download><span class="role-badge">Download</span></#if>
-                            <#if library.clientInstaller><span class="role-badge">Client Install</span></#if>
-                            <#if library.serverInstaller><span class="role-badge">Server Install</span></#if>
-                        </td>
+                        <td><a href="${library.url}" download>${library.mavenComponentIdString}</a><br></td>
                         <td>
                             <#if library.size??>
                                 <#assign sizeKb = library.size / 1024>
@@ -150,10 +168,10 @@
                                 -
                             </#if>
                         </td>
-                        <td>
-                            <a href="${library.url?url}" target="_blank" style="font-size: 0.8rem;">Download</a><br>
-                            <span class="muted">SHA1: ${library.sha1Checksum}</span>
-                        </td>
+                        <td>${library.clientClasspath?then('CCP', '')}</td>
+                        <td>${library.clientModulePath?then('CMP', '')}</td>
+                        <td>${library.clientInstaller?then('CI', '')}</td>
+                        <td>${library.serverInstaller?then('SI', '')}</td>
                     </tr>
                 </#list>
                 </tbody>
@@ -164,4 +182,30 @@
             <a href="/" class="btn btn-secondary">Back to Home</a>
         </p>
     </section>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            jQuery("#libraries").DataTable({
+                paging: false,
+                order: [[0, 'desc']],
+                fixedHeader: true,
+                columnControl: [
+                    {
+                        target: 0,
+                        content: ['order', ['searchList']]
+                    },
+                    {
+                        target: 1,
+                        content: ['search']
+                    }
+                ],
+                ordering: {
+                    indicators: false,
+                    handler: false
+                }
+            });
+
+        });
+    </script>
 </@page.layout>

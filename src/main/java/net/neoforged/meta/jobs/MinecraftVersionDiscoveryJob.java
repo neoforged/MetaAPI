@@ -77,12 +77,15 @@ public class MinecraftVersionDiscoveryJob implements Runnable {
                         if (manifestChanged || existingVersion.isReimport()) {
                             updateVersion(discoveredVersion, existingVersion);
                             existingVersion.setReimport(false);
+                            existingVersion.setLastModified(Instant.now());
                             versionsChanged.incrementAndGet();
                         }
                         brokenVersions.reportSuccess(discoveredVersion.id());
                     } else {
                         existingVersion = new MinecraftVersion();
                         existingVersion.setVersion(discoveredVersion.id());
+                        existingVersion.setDiscovered(Instant.now());
+                        existingVersion.setLastModified(existingVersion.getDiscovered());
                         existingVersion.setImported(true);
                         updateVersion(discoveredVersion, existingVersion);
                         minecraftVersionDao.save(existingVersion);

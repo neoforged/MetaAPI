@@ -5,7 +5,7 @@
     <section>
         <h2>Minecraft Versions</h2>
 
-        <p>Showing ${minecraftVersions?size} Minecraft versions. Show <a href="/v1/versions/minecraft/">/v1/versions/minecraft/</a> response.</p>
+        <p>Showing ${minecraftVersions?size} Minecraft versions. Show <a href="/v1/minecraft-versions/">API response</a>.</p>
 
         <table id="minecraftVersions" class="display">
             <thead>

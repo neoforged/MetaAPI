@@ -2,7 +2,6 @@ package net.neoforged.meta.db;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
-import net.neoforged.meta.jobs.MinecraftVersionDiscoveryJob;
 import net.neoforged.meta.manifests.version.MinecraftDownload;
 import net.neoforged.meta.manifests.version.MinecraftLibrary;
 import org.jspecify.annotations.Nullable;
@@ -10,6 +9,14 @@ import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Libraries referenced by a Minecraft or NeoForge version.
+ * <p>
+ * They can be referenced in various ways:
+ * <ul>
+ *     <li>clientClasspath: The library is on the startup classpath of the client.</li>
+ * </ul>
+ */
 @Embeddable
 public class ReferencedLibrary {
 
@@ -30,9 +37,9 @@ public class ReferencedLibrary {
     private boolean clientClasspath;
 
     /**
-     * Downloaded and placed in libraries for the client and server, but not part of the classpath.
+     * Used on the client-side module-path.
      */
-    private boolean download;
+    private boolean clientModulePath;
 
     /**
      * Used by the installer for the client.
@@ -98,12 +105,12 @@ public class ReferencedLibrary {
         this.clientClasspath = clientClasspath;
     }
 
-    public boolean isDownload() {
-        return download;
+    public boolean isClientModulePath() {
+        return clientModulePath;
     }
 
-    public void setDownload(boolean download) {
-        this.download = download;
+    public void setClientModulePath(boolean clientModulePath) {
+        this.clientModulePath = clientModulePath;
     }
 
     public boolean isClientInstaller() {
@@ -146,6 +153,17 @@ public class ReferencedLibrary {
         this.url = url;
     }
 
+    public String getMavenRepositoryPath() {
+        var path = groupId.replace('.', '/') + "/" + artifactId + "/" + version + "/" + artifactId + "-" + version;
+        if (classifier != null) {
+            path += "-" + classifier;
+        }
+        if (extension != null) {
+            path += "." + extension;
+        }
+        return path;
+    }
+
     public static ReferencedLibrary of(String artifactId) {
         String extension = "jar";
         if (artifactId.contains("@")) {
@@ -171,10 +189,13 @@ public class ReferencedLibrary {
             if (classifierPair.classifier != null) {
                 referencedLib.setClassifier(classifierPair.classifier);
             }
-            referencedLib.setClientClasspath(true);
             referencedLib.setSha1Checksum(classifierPair.download.checksum());
             referencedLib.setSize((long) classifierPair.download.size());
             referencedLib.setUrl(classifierPair.download.uri().toString());
+            if (!referencedLib.getMavenRepositoryPath().equals(classifierPair.download.path())) {
+                throw new IllegalStateException("Library in manifest specifies non-standard download path: " + classifierPair.download.path()
+                        + ". Expected: " + referencedLib.getMavenRepositoryPath());
+            }
             result.add(referencedLib);
         }
         return result;

@@ -1,9 +1,11 @@
 package net.neoforged.meta.manifests.version;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import net.neoforged.meta.util.OsUtil;
 
 import java.util.regex.Pattern;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public record OsCondition(String name, String version, String arch) {
     public boolean nameMatches() {
         if (name == null) {

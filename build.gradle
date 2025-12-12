@@ -53,9 +53,12 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
 	implementation 'org.springframework.boot:spring-boot-starter-freemarker'
+	implementation 'org.springframework.boot:spring-boot-flyway'
     implementation 'tools.jackson.dataformat:jackson-dataformat-xml'
 
     implementation 'org.apache.maven:maven-artifact:4.0.0-rc-5'
+
+	implementation 'org.flywaydb:flyway-core'
 
 	runtimeOnly 'org.xerial:sqlite-jdbc:3.47.1.0'
 	runtimeOnly 'org.hibernate.orm:hibernate-community-dialects:7.0.0.Beta1'

@@ -3,7 +3,7 @@ package net.neoforged.meta.manifests.version;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
-enum RuleAction {
+public enum RuleAction {
     ALLOWED("allow"),
     DISALLOWED("disallow");
 

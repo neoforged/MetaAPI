@@ -1,0 +1,88 @@
+{
+  "arguments" : {
+    "game" : [
+      "--launchTarget forgeserver",
+      "--fml.neoForgeVersion 20.4.197",
+      "--fml.fmlVersion 2.0.17",
+      "--fml.mcVersion 1.20.4",
+      "--fml.neoFormVersion 20231207.154220",
+      {
+        "rules" : [
+          {
+            "action" : "allow",
+            "os" : {
+              "name" : "linux"
+            }
+          },
+          {
+            "action" : "allow",
+            "os" : {
+              "name" : "osx"
+            }
+          }
+        ],
+        "value" : "-DunixSpecificEnd"
+      },
+      {
+        "rules" : [
+          {
+            "action" : "allow",
+            "os" : {
+              "name" : "windows"
+            }
+          }
+        ],
+        "value" : "-DwindowsSpecificEnd"
+      }
+    ],
+    "jvm" : [
+      "-p",
+      "${library_directory}/cpw/mods/securejarhandler/2.1.24/securejarhandler-2.1.24.jar${classpath_separator}${library_directory}/org/ow2/asm/asm/9.5/asm-9.5.jar${classpath_separator}${library_directory}/org/ow2/asm/asm-commons/9.5/asm-commons-9.5.jar${classpath_separator}${library_directory}/org/ow2/asm/asm-tree/9.5/asm-tree-9.5.jar${classpath_separator}${library_directory}/org/ow2/asm/asm-util/9.5/asm-util-9.5.jar${classpath_separator}${library_directory}/org/ow2/asm/asm-analysis/9.5/asm-analysis-9.5.jar${classpath_separator}${library_directory}/cpw/mods/bootstraplauncher/1.1.2/bootstraplauncher-1.1.2.jar${classpath_separator}${library_directory}/net/neoforged/JarJarFileSystems/0.4.0/JarJarFileSystems-0.4.0.jar",
+      "--add-modules",
+      "ALL-MODULE-PATH",
+      "--add-opens",
+      "java.base/java.util.jar=cpw.mods.securejarhandler",
+      "--add-opens",
+      "java.base/java.lang.invoke=cpw.mods.securejarhandler",
+      "--add-exports",
+      "java.base/sun.security.util=cpw.mods.securejarhandler",
+      "--add-exports",
+      "jdk.naming.dns/com.sun.jndi.dns=java.naming",
+      "-Djava.net.preferIPv6Addresses=system",
+      {
+        "rules" : [
+          {
+            "action" : "allow",
+            "os" : {
+              "name" : "windows"
+            }
+          }
+        ],
+        "value" : "-DwindowsSpecific"
+      },
+      "-DignoreList=securejarhandler-2.1.24.jar,asm-9.5.jar,asm-commons-9.5.jar,asm-tree-9.5.jar,asm-util-9.5.jar,asm-analysis-9.5.jar,bootstraplauncher-1.1.2.jar,JarJarFileSystems-0.4.0.jar",
+      "-Dfml.pluginLayerLibraries=",
+      {
+        "rules" : [
+          {
+            "action" : "allow",
+            "os" : {
+              "name" : "linux"
+            }
+          },
+          {
+            "action" : "allow",
+            "os" : {
+              "name" : "osx"
+            }
+          }
+        ],
+        "value" : "-DunixSpecific"
+      },
+      "-Dfml.gameLayerLibraries=",
+      "-DlibraryDirectory=${library_directory}",
+      "-DlegacyClassPath=${library_directory}/net/neoforged/fancymodloader/earlydisplay/2.0.17/earlydisplay-2.0.17.jar${classpath_separator}${library_directory}/net/neoforged/fancymodloader/loader/2.0.17/loader-2.0.17.jar${classpath_separator}${library_directory}/net/neoforged/coremods/6.0.4/coremods-6.0.4.jar${classpath_separator}${library_directory}/net/neoforged/fancymodloader/spi/2.0.17/spi-2.0.17.jar${classpath_separator}${library_directory}/cpw/mods/modlauncher/10.0.9/modlauncher-10.0.9.jar${classpath_separator}${library_directory}/cpw/mods/securejarhandler/2.1.24/securejarhandler-2.1.24.jar${classpath_separator}${library_directory}/net/neoforged/accesstransformers/at-modlauncher/10.0.1/at-modlauncher-10.0.1.jar${classpath_separator}${library_directory}/net/neoforged/accesstransformers/10.0.1/accesstransformers-10.0.1.jar${classpath_separator}${library_directory}/org/openjdk/nashorn/nashorn-core/15.4/nashorn-core-15.4.jar${classpath_separator}${library_directory}/org/ow2/asm/asm-commons/9.5/asm-commons-9.5.jar${classpath_separator}${library_directory}/net/neoforged/mergetool/2.0.0/mergetool-2.0.0-api.jar${classpath_separator}${library_directory}/org/ow2/asm/asm-util/9.5/asm-util-9.5.jar${classpath_separator}${library_directory}/org/ow2/asm/asm-analysis/9.5/asm-analysis-9.5.jar${classpath_separator}${library_directory}/org/ow2/asm/asm-tree/9.5/asm-tree-9.5.jar${classpath_separator}${library_directory}/net/neoforged/bus/7.2.0/bus-7.2.0.jar${classpath_separator}${library_directory}/org/ow2/asm/asm/9.5/asm-9.5.jar${classpath_separator}${library_directory}/net/minecraftforge/unsafe/0.2.0/unsafe-0.2.0.jar${classpath_separator}${library_directory}/com/electronwill/night-config/toml/3.6.4/toml-3.6.4.jar${classpath_separator}${library_directory}/com/electronwill/night-config/core/3.6.4/core-3.6.4.jar${classpath_separator}${library_directory}/net/neoforged/JarJarSelector/0.4.0/JarJarSelector-0.4.0.jar${classpath_separator}${library_directory}/net/neoforged/JarJarMetadata/0.4.0/JarJarMetadata-0.4.0.jar${classpath_separator}${library_directory}/org/apache/maven/maven-artifact/3.8.5/maven-artifact-3.8.5.jar${classpath_separator}${library_directory}/net/jodah/typetools/0.6.3/typetools-0.6.3.jar${classpath_separator}${library_directory}/net/minecrell/terminalconsoleappender/1.2.0/terminalconsoleappender-1.2.0.jar${classpath_separator}${library_directory}/net/fabricmc/sponge-mixin/0.13.0+mixin.0.8.5/sponge-mixin-0.13.0+mixin.0.8.5.jar${classpath_separator}${library_directory}/org/apache/commons/commons-lang3/3.13.0/commons-lang3-3.13.0.jar${classpath_separator}${library_directory}/net/sf/jopt-simple/jopt-simple/5.0.4/jopt-simple-5.0.4.jar${classpath_separator}${library_directory}/commons-io/commons-io/2.11.0/commons-io-2.11.0.jar${classpath_separator}${library_directory}/org/apache/logging/log4j/log4j-core/2.19.0/log4j-core-2.19.0.jar${classpath_separator}${library_directory}/org/apache/logging/log4j/log4j-api/2.19.0/log4j-api-2.19.0.jar${classpath_separator}${library_directory}/com/google/guava/guava/31.1-jre/guava-31.1-jre.jar${classpath_separator}${library_directory}/com/google/code/gson/gson/2.10/gson-2.10.jar${classpath_separator}${library_directory}/com/mojang/logging/1.1.1/logging-1.1.1.jar${classpath_separator}${library_directory}/org/jetbrains/annotations/22.0.0/annotations-22.0.0.jar${classpath_separator}${library_directory}/org/slf4j/slf4j-api/2.0.9/slf4j-api-2.0.9.jar${classpath_separator}${library_directory}/org/antlr/antlr4-runtime/4.13.1/antlr4-runtime-4.13.1.jar${classpath_separator}${library_directory}/net/minecraftforge/srgutils/0.4.15/srgutils-0.4.15.jar${classpath_separator}${library_directory}/org/codehaus/plexus/plexus-utils/3.3.0/plexus-utils-3.3.0.jar${classpath_separator}${library_directory}/org/jline/jline-reader/3.12.1/jline-reader-3.12.1.jar${classpath_separator}${library_directory}/com/machinezoo/noexception/noexception/1.7.1/noexception-1.7.1.jar${classpath_separator}${library_directory}/com/google/guava/failureaccess/1.0.1/failureaccess-1.0.1.jar${classpath_separator}${library_directory}/com/google/guava/listenablefuture/9999.0-empty-to-avoid-conflict-with-guava/listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar${classpath_separator}${library_directory}/com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.jar${classpath_separator}${library_directory}/org/checkerframework/checker-qual/3.12.0/checker-qual-3.12.0.jar${classpath_separator}${library_directory}/com/google/errorprone/error_prone_annotations/2.11.0/error_prone_annotations-2.11.0.jar${classpath_separator}${library_directory}/com/google/j2objc/j2objc-annotations/1.3/j2objc-annotations-1.3.jar${classpath_separator}${library_directory}/org/jline/jline-terminal/3.12.1/jline-terminal-3.12.1.jar${classpath_separator}${library_directory}/net/minecraft/server/1.20.4-20231207.154220/server-1.20.4-20231207.154220-extra.jar${classpath_separator}${library_directory}/com/github/oshi/oshi-core/6.4.5/oshi-core-6.4.5.jar${classpath_separator}${library_directory}/com/mojang/authlib/6.0.52/authlib-6.0.52.jar${classpath_separator}${library_directory}/com/mojang/brigadier/1.2.9/brigadier-1.2.9.jar${classpath_separator}${library_directory}/com/mojang/datafixerupper/6.0.8/datafixerupper-6.0.8.jar${classpath_separator}${library_directory}/io/netty/netty-buffer/4.1.97.Final/netty-buffer-4.1.97.Final.jar${classpath_separator}${library_directory}/io/netty/netty-codec/4.1.97.Final/netty-codec-4.1.97.Final.jar${classpath_separator}${library_directory}/io/netty/netty-common/4.1.97.Final/netty-common-4.1.97.Final.jar${classpath_separator}${library_directory}/io/netty/netty-handler/4.1.97.Final/netty-handler-4.1.97.Final.jar${classpath_separator}${library_directory}/io/netty/netty-resolver/4.1.97.Final/netty-resolver-4.1.97.Final.jar${classpath_separator}${library_directory}/io/netty/netty-transport/4.1.97.Final/netty-transport-4.1.97.Final.jar${classpath_separator}${library_directory}/io/netty/netty-transport-classes-epoll/4.1.97.Final/netty-transport-classes-epoll-4.1.97.Final.jar${classpath_separator}${library_directory}/io/netty/netty-transport-native-epoll/4.1.97.Final/netty-transport-native-epoll-4.1.97.Final-linux-x86_64.jar${classpath_separator}${library_directory}/io/netty/netty-transport-native-epoll/4.1.97.Final/netty-transport-native-epoll-4.1.97.Final-linux-aarch_64.jar${classpath_separator}${library_directory}/io/netty/netty-transport-native-unix-common/4.1.97.Final/netty-transport-native-unix-common-4.1.97.Final.jar${classpath_separator}${library_directory}/it/unimi/dsi/fastutil/8.5.12/fastutil-8.5.12.jar${classpath_separator}${library_directory}/net/java/dev/jna/jna/5.13.0/jna-5.13.0.jar${classpath_separator}${library_directory}/net/java/dev/jna/jna-platform/5.13.0/jna-platform-5.13.0.jar${classpath_separator}${library_directory}/org/apache/logging/log4j/log4j-slf4j2-impl/2.19.0/log4j-slf4j2-impl-2.19.0.jar${classpath_separator}${library_directory}/org/joml/joml/1.10.5/joml-1.10.5.jar"
+    ]
+  },
+  "mainClass" : "cpw.mods.bootstraplauncher.BootstrapLauncher"
+}

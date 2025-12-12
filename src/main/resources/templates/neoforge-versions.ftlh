@@ -5,7 +5,7 @@
     <section>
         <h2>NeoForge Versions</h2>
 
-        <p>Showing ${versions?size} NeoForge versions. Show <a href="/v1/versions/neoforge/">/v1/versions/neoforge/</a> response.</p>
+        <p>Showing ${versions?size} NeoForge versions. Show <a href="/v1/neoforge-versions/">API</a> response.</p>
 
         <table id="neoForgeVersions" class="display">
             <thead>

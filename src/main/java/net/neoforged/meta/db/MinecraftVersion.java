@@ -39,6 +39,18 @@ public class MinecraftVersion {
     private Instant released;
 
     /**
+     * When this version was first discovered.
+     */
+    @Column(nullable = false)
+    private Instant discovered;
+
+    /**
+     * When this version was last modified.
+     */
+    @Column(nullable = false)
+    private Instant lastModified;
+
+    /**
      * Whether this version was added automatically (i.e. by the job to sync with the launcher manifest).
      */
     @Column(nullable = false)
@@ -64,7 +76,7 @@ public class MinecraftVersion {
      * A flag that can be set to true to force this version to be reimported next time the Minecraft
      * versions are scanned.
      */
-    @Column(nullable = false, columnDefinition = "integer default 0 not null")
+    @Column(nullable = false)
     private boolean reimport;
 
     public Long getId() {
@@ -97,6 +109,22 @@ public class MinecraftVersion {
 
     public void setReleased(Instant released) {
         this.released = released;
+    }
+
+    public Instant getDiscovered() {
+        return discovered;
+    }
+
+    public void setDiscovered(Instant discovered) {
+        this.discovered = discovered;
+    }
+
+    public Instant getLastModified() {
+        return lastModified;
+    }
+
+    public void setLastModified(Instant lastModified) {
+        this.lastModified = lastModified;
     }
 
     public boolean isImported() {
