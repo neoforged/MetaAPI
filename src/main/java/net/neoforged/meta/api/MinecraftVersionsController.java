@@ -2,10 +2,10 @@ package net.neoforged.meta.api;
 
 import net.neoforged.meta.db.MinecraftVersionDao;
 import net.neoforged.meta.db.NeoForgeVersion;
-import net.neoforged.meta.db.NeoForgeVersionDao;
 import net.neoforged.meta.generated.api.MinecraftVersionsApi;
 import net.neoforged.meta.generated.model.MinecraftVersionDetails;
 import net.neoforged.meta.generated.model.MinecraftVersionSummary;
+import net.neoforged.meta.maven.NeoForgeVersionService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,24 +20,18 @@ import java.util.stream.Collectors;
 public class MinecraftVersionsController implements MinecraftVersionsApi {
 
     private final MinecraftVersionDao minecraftVersionDao;
-    private final NeoForgeVersionDao neoForgeVersionDao;
+    private final NeoForgeVersionService neoForgeVersionService;
 
-    public MinecraftVersionsController(MinecraftVersionDao minecraftVersionDao, NeoForgeVersionDao neoForgeVersionDao) {
+    public MinecraftVersionsController(MinecraftVersionDao minecraftVersionDao,
+                                       NeoForgeVersionService neoForgeVersionService) {
         this.minecraftVersionDao = minecraftVersionDao;
-        this.neoForgeVersionDao = neoForgeVersionDao;
+        this.neoForgeVersionService = neoForgeVersionService;
     }
 
     @Override
     @Transactional(readOnly = true)
     public ResponseEntity<List<MinecraftVersionSummary>> getMinecraftVersions() {
-        // Build a map from minecraft version to latest NF version available for that
-        var latestNeoForgeVersions = neoForgeVersionDao.findLatestForAllMinecraftVersions()
-                .stream()
-                .collect(Collectors.toMap(
-                        NeoForgeVersion::getMinecraftVersion,
-                        v -> v,
-                        (a, _) -> a
-                ));
+        var latestNeoForgeVersions = neoForgeVersionService.getLatestVersionByMinecraftVersion();
 
         var result = new ArrayList<MinecraftVersionSummary>();
         for (var version : minecraftVersionDao.findAll()) {

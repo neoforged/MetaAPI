@@ -1,6 +1,7 @@
 package net.neoforged.meta.ui;
 
 import net.neoforged.meta.db.MinecraftVersionDao;
+import net.neoforged.meta.maven.NeoForgeVersionService;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Controller;
 import org.springframework.transaction.annotation.Transactional;
@@ -10,12 +11,17 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.Map;
+import java.util.stream.Collectors;
+
 @Controller("uiVersionsController")
 public class MinecraftVersionsController {
     private final MinecraftVersionDao minecraftVersionDao;
+    private final NeoForgeVersionService neoForgeVersionService;
 
-    public MinecraftVersionsController(MinecraftVersionDao minecraftVersionDao) {
+    public MinecraftVersionsController(MinecraftVersionDao minecraftVersionDao, NeoForgeVersionService neoForgeVersionService) {
         this.minecraftVersionDao = minecraftVersionDao;
+        this.neoForgeVersionService = neoForgeVersionService;
     }
 
     @GetMapping("/ui/minecraft-versions")
@@ -23,6 +29,14 @@ public class MinecraftVersionsController {
     public String versions(Model model) {
         var minecraftVersions = minecraftVersionDao.findAll(Sort.by(Sort.Direction.DESC, "released"));
         model.addAttribute("minecraftVersions", minecraftVersions);
+        var latestNeoForgeVersions = neoForgeVersionService.getLatestVersionByMinecraftVersion()
+                // Remap to String -> NeoForge Version since Freemarker doesn't support non-string keys
+                .entrySet().stream()
+                .collect(Collectors.toMap(
+                        v -> v.getKey().getVersion(),
+                        Map.Entry::getValue
+                ));
+        model.addAttribute("latestNeoForgeVersions", latestNeoForgeVersions);
 
         return "minecraft-versions";
     }

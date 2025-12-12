@@ -12,6 +12,21 @@ import java.util.List;
 public interface SoftwareComponentVersionDao extends JpaRepository<SoftwareComponentVersion, Long> {
 
     /**
+     * Finds the latest NeoForge version for each Minecraft version using a subquery.
+     * This efficiently retrieves all latest versions in a single database query.
+     * @return List of the latest NeoForge version for each Minecraft version
+     */
+    @Query("""
+        SELECT nf FROM NeoForgeVersion nf
+        WHERE (nf.minecraftVersion, nf.released) IN (
+            SELECT nf2.minecraftVersion, MAX(nf2.released)
+            FROM NeoForgeVersion nf2
+            GROUP BY nf2.minecraftVersion
+        )
+        """)
+    List<NeoForgeVersion> findLatestNeoForgeByMinecraftVersion();
+
+    /**
      * Find a specific version of a Maven artifact.
      *
      * @param groupId    The Maven group ID

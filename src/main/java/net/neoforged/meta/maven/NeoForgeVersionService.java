@@ -1,5 +1,6 @@
 package net.neoforged.meta.maven;
 
+import net.neoforged.meta.db.MinecraftVersion;
 import net.neoforged.meta.db.NeoForgeVersion;
 import net.neoforged.meta.db.SoftwareComponentVersion;
 import net.neoforged.meta.db.SoftwareComponentVersionDao;
@@ -8,6 +9,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class NeoForgeVersionService {
@@ -43,5 +46,18 @@ public class NeoForgeVersionService {
         }
 
         return null;
+    }
+
+    /**
+     * {@return a map from minecraft version to latest NF version available}
+     */
+    public Map<MinecraftVersion, NeoForgeVersion> getLatestVersionByMinecraftVersion() {
+        return dao.findLatestNeoForgeByMinecraftVersion()
+                .stream()
+                .collect(Collectors.toMap(
+                        NeoForgeVersion::getMinecraftVersion,
+                        v -> v,
+                        (a, _) -> a
+                ));
     }
 }
