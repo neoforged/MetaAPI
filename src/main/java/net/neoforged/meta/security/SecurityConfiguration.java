@@ -78,6 +78,9 @@ public class SecurityConfiguration {
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                 )
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(new BrowserAwareAuthenticationEntryPoint("/oauth2/authorization/dex"))
+                )
                 .build();
     }
 }
