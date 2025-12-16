@@ -23,6 +23,11 @@ public class SecurityProperties {
      */
     private Set<String> adminGroups = new HashSet<>();
 
+    /**
+     * Allowed GitHub repositories for OIDC token authentication (format: owner/repo)
+     */
+    private Set<String> allowedRepositories = new HashSet<>();
+
     public List<String> getApiKeys() {
         return apiKeys;
     }
@@ -45,5 +50,13 @@ public class SecurityProperties {
 
     public void setAdminGroups(Set<String> adminGroups) {
         this.adminGroups = adminGroups;
+    }
+
+    public Set<String> getAllowedRepositories() {
+        return allowedRepositories;
+    }
+
+    public void setAllowedRepositories(Set<String> allowedRepositories) {
+        this.allowedRepositories = allowedRepositories;
     }
 }

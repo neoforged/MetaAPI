@@ -7,6 +7,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
 import java.io.IOException;
 
@@ -18,6 +19,13 @@ import java.io.IOException;
  * contains "text/html".
  */
 public class BrowserAwareAuthenticationEntryPoint implements AuthenticationEntryPoint {
+    /**
+     * We heuristically consider any request that explicitly asks for text/html without weighting a browser request.
+     */
+    public static RequestMatcher BROWSER_REQUEST_MATCHER = request -> {
+        var mediaTypes = MediaType.parseMediaTypes(request.getHeader("Accept"));
+        return mediaTypes.contains(MediaType.TEXT_HTML);
+    };
 
     private final LoginUrlAuthenticationEntryPoint browserEntryPoint;
 
@@ -30,20 +38,12 @@ public class BrowserAwareAuthenticationEntryPoint implements AuthenticationEntry
                          AuthenticationException authException) throws IOException, ServletException {
 
         // Check if the request accepts HTML (indicates a browser)
-        if (isBrowserDocumentRequest(request)) {
+        if (BROWSER_REQUEST_MATCHER.matcher(request).isMatch()) {
             // Redirect to OAuth login page for browsers
             browserEntryPoint.commence(request, response, authException);
         } else {
             // Return 401 Unauthorized for API clients
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
         }
-    }
-
-    /**
-     * We heuristically consider any request that explicitly asks for text/html without weighting a browser request.
-     */
-    private boolean isBrowserDocumentRequest(HttpServletRequest request) {
-        var mediaTypes = MediaType.parseMediaTypes(request.getHeader("Accept"));
-        return mediaTypes.contains(MediaType.TEXT_HTML);
     }
 }
