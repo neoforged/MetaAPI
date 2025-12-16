@@ -18,16 +18,61 @@ Each Maven component that the service should index must be listed in the applica
 specifying groupId/artifactId, which repository the artifacts are published to, and special rules which artifacts
 are expected for each version range of the component, to accommodate the set of published artifacts changing over time.
 
+## Webhooks
+
+The API can invoke webhooks when versions change.
+
+See `net.neoforged.meta.config.trigger.TriggersProperties` for details.
+
 ## Authentication
 
-The application implements dual authentication strategies depending on the access pattern. API endpoints under `/v1/**`
-require API key authentication via the `X-API-Key` header. This requires no session cookies or CSRF.
-API keys are configured in the application configuration file.
+The API allows for three types of authentication. Two are intended for external consumers, while the third is used
+only internally by NeoForge team members.
 
-UI endpoints use our GitHub OAuth2 authentication system with cookie-based sessions and CSRF protection.
-Static resources like CSS, JavaScript, and images are publicly accessible without authentication.
-The session cookie also allows use of the API endpoints, which makes testing the API in the browser
-much easier.
+### API-Key Authentication
 
-This dual-authentication setup allows us to inspect and administrate using the UI while API consumers authenticate
-using an API key.
+External consumers of the API can authenticate using an API key header. To get an API key, contact us
+on [Discord](https://discord.neoforged.net/).
+
+The name of the HTTP header is `X-API-Key`.
+
+### GitHub Actions
+
+If your code is running inside a GitHub Actions Workflow, you can also use the built-in OpenID Connect Token to
+authenticate
+with the Meta API. Our API requires the token audience `neoforged-meta-api`.
+
+Example Workflow to access the API:
+
+```yaml
+name: API Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get OIDC Token
+        id: oidc
+        uses: actions/github-script@v7
+        with:
+          script: core.setOutput('token', await core.getIDToken('neoforge-meta-api'))
+      - name: Query API
+        run: |
+          curl --fail -H "Authorization: Bearer ${META_API_TOKEN}" https://meta-api.prod.k8s.neoforged.net/v1/neoforge-versions/ -v -o response
+          cat response | jq
+        env:
+          META_API_TOKEN: "${{ steps.oidc.outputs.token }}"
+```
+
+### User Authentication
+
+If a browser is used to access the API, it will redirect to our IDP (Dex), which authenticates the user using
+GitHub and establishes a Session-Cookie. This is used to inspect the data stored in the API and debug issues
+by the NeoForge team and is not available to external users.
