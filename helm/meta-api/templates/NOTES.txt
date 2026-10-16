@@ -1,0 +1,36 @@
+Meta API release "{{ .Release.Name }}" was deployed to namespace "{{ .Release.Namespace }}".
+
+  Replicas:      {{ .Values.replicaCount }}
+  Image:         {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
+  Service:       {{ include "meta-api.fullname" . }} (port {{ .Values.service.port }})
+{{- if .Values.database.existingSecret }}
+  Database:      using existing Secret "{{ .Values.database.existingSecret }}" (keys url/username/password)
+{{- else }}
+  Database:      chart-managed Secret "{{ printf "%s-db" (include "meta-api.fullname" .) }}"
+{{- end }}
+
+Routing:
+{{- if and .Values.ingress.enabled .Values.gateway.enabled }}
+  NOTE: both ingress.enabled and gateway.enabled are true — two routing rules
+  were created for the same Service. This works but is usually a
+  misconfiguration; enable exactly one of them.
+{{- else if .Values.ingress.enabled }}
+  Ingress "{{ include "meta-api.fullname" . }}" was created for host
+  {{ .Values.ingress.host | quote }} (class {{ .Values.ingress.className | default "(cluster default)" }}).
+  Verify an ingress controller is running and the host resolves to it.
+{{- else if .Values.gateway.enabled }}
+  HTTPRoute "{{ include "meta-api.fullname" . }}" was attached to gateway
+  {{ .Values.gateway.parentRef.name | quote }} (port {{ .Values.gateway.port }}){{ with .Values.gateway.hostnames }} for hostname(s): {{ join ", " . }}{{ end }}.
+  Verify the Gateway has an HTTP listener on that port and admits HTTPRoutes
+  from namespace "{{ .Release.Namespace }}".
+{{- else }}
+  No routing resource was created (ingress.enabled=false, gateway.enabled=false);
+  the Service is only reachable inside the cluster.
+{{- end }}
+
+Check status:
+  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+
+Health (no auth required):
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "meta-api.fullname" . }} 8080:{{ .Values.service.port }}
+  curl http://localhost:8080/actuator/health/readiness

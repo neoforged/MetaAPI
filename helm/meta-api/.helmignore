@@ -1,0 +1,7 @@
+# Git and editor noise — keep the chart directory clean.
+.git*
+.idea/
+.vscode/
+*.swp
+*.bak
+.DS_Store

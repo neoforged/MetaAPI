@@ -25,7 +25,7 @@
                     <td>${version.groupId}</td>
                     <td>${version.artifactId}</td>
                     <td>
-                        <a href="/ui/broken-versions/version/${version.groupId?url}/${version.artifactId?url}/${version.version?url}">${version.version}</a>
+                        <a href="/ui/broken-versions/version/${version.groupId?url}/${version.artifactId?url}/${version.versionString?url}">${version.versionString}</a>
                     </td>
                     <td>${version.created}</td>
                     <td>${version.lastAttempt}</td>

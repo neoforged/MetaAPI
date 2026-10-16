@@ -65,7 +65,14 @@ paths:
   /neoforge-versions/:
     get:
       operationId: getNeoForgeVersions
-      description: Gets all available NeoForge versions
+      description: Gets all available NeoForge versions. If `minecraftVersion` is given, only the versions compatible with that Minecraft version are returned.
+      parameters:
+        - name: minecraftVersion
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Only return NeoForge versions for this specific Minecraft version (e.g. `1.20.4`).
       responses:
         200:
           description: The list of available NeoForge versions

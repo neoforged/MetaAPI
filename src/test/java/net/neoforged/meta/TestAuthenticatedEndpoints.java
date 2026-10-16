@@ -40,8 +40,12 @@ public class TestAuthenticatedEndpoints {
                 .uri(baseUrl + path)
                 .exchange((_, clientResponse) -> clientResponse)) {
             int statusCode = response.getStatusCode().value();
-            assertEquals(401, statusCode,
-                    "Expected 401 Unauthorized for " + method + " " + path + " but got " + statusCode);
+            // Unauthenticated POST requests are rejected by CSRF protection (403) before
+            // they reach the authentication entry point; a valid token is only issued to
+            // sessions that have logged in and rendered a page.
+            var expectedStatus = "POST".equals(method) ? 403 : 401;
+            assertEquals(expectedStatus, statusCode,
+                    "Expected " + expectedStatus + " for " + method + " " + path + " but got " + statusCode);
         }
     }
 
@@ -57,6 +61,14 @@ public class TestAuthenticatedEndpoints {
                 .header("Accept", "text/html")
                 .exchange((_, clientResponse) -> clientResponse)) {
             int statusCode = response.getStatusCode().value();
+            // Unauthenticated POST requests are rejected by CSRF protection (403) before
+            // they reach the login redirect; a valid token is only issued to sessions that
+            // have logged in and rendered a page.
+            if ("POST".equals(method)) {
+                assertEquals(403, statusCode,
+                        "Expected 403 for CSRF-protected POST " + path + " but got " + statusCode);
+                return;
+            }
             assertEquals(302, statusCode,
                     "Expected redirect for " + method + " " + path + " but got " + statusCode);
             String location = response.getHeaders().getFirst("Location");
@@ -77,7 +89,13 @@ public class TestAuthenticatedEndpoints {
                     var patterns = new HashSet<>(mapping.getPatternValues());
                     var httpMethods = mapping.getMethodsCondition().getMethods();
 
-                    patterns.remove("/"); // The index page is white-listed to be accessible anonymously
+                    // Skip paths that are intentionally public (whitelisted in SecurityConfiguration):
+                    //  - "/": the welcome page
+                    //  - "/error": also returns 500 on direct access under Boot 4's BasicErrorController
+                    //  - "/ui/logout/success": public by design so browsers can render it after logout
+                    patterns.remove("/");
+                    patterns.remove("/error");
+                    patterns.remove("/ui/logout/success");
 
                     // If no methods specified, default to GET
                     final var finalMethods = httpMethods.isEmpty()

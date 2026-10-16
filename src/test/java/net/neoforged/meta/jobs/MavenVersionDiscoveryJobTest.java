@@ -1,5 +1,6 @@
 package net.neoforged.meta.jobs;
 
+import net.neoforged.meta.db.BrokenSoftwareComponentVersionDao;
 import net.neoforged.meta.db.SoftwareComponentVersionDao;
 import net.neoforged.meta.db.MinecraftVersion;
 import net.neoforged.meta.db.MinecraftVersionDao;
@@ -55,6 +56,9 @@ class MavenVersionDiscoveryJobTest {
     MinecraftVersionDao minecraftVersionDao;
 
     @Autowired
+    BrokenSoftwareComponentVersionDao brokenVersionDao;
+
+    @Autowired
     SoftwareComponentVersionDao versionDao;
 
     @Autowired
@@ -66,14 +70,21 @@ class MavenVersionDiscoveryJobTest {
         minecraftVersion.setVersion("1.0.0");
         minecraftVersion.setType("release");
         minecraftVersion.setReleased(Instant.now());
+        // Both columns are NOT NULL in the schema; the discovery job sets them itself
+        // when inserting versions, but this fixture must as well.
+        minecraftVersion.setDiscovered(Instant.now());
+        minecraftVersion.setLastModified(Instant.now());
         minecraftVersionDao.save(minecraftVersion);
     }
 
     @AfterEach
     void tearDown() {
-        // Clean up database and server after each test
+        // Clean up database and server after each test. Broken-version entries must go
+        // as well, otherwise versions reported broken by one test are skipped by later
+        // tests that reuse the same version ids.
         versionDao.deleteAll();
         minecraftVersionDao.deleteAll();
+        brokenVersionDao.deleteAll();
         mavenRepo.clear();
     }
 

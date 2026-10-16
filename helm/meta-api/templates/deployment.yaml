@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "meta-api.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "meta-api.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0   # never drop below current capacity during a rollout
+  selector:
+    matchLabels:
+      {{- include "meta-api.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "meta-api.labels" . | nindent 8 }}
+    spec:
+      {{- with .Values.pullSecrets }}
+      imagePullSecrets:
+        {{- range . }}
+        - name: {{ .name }}
+        {{- end }}
+      {{- end }}
+      containers:
+        - name: meta-api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: {{ .Values.springProfilesActive | quote }}
+            {{- with .Values.instanceId }}
+            # INSTANCE_ID is optional — auto-generated from the pod hostname if unset.
+            - name: INSTANCE_ID
+              value: {{ . | quote }}
+            {{- end }}
+{{/* Credentials come from database.existingSecret when set, otherwise from the
+    chart-managed "<fullname>-db" Secret created from the inline values. */}}
+{{- $dbSecretName := .Values.database.existingSecret | default (printf "%s-db" (include "meta-api.fullname" .)) }}
+            - name: DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $dbSecretName }}
+                  key: url
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $dbSecretName }}
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $dbSecretName }}
+                  key: password
+            # Connection pool size per replica (HikariCP). With multiple replicas
+            # on a modest Postgres, keep this at 15 or lower.
+            - name: DB_POOL_SIZE
+              value: {{ .Values.database.poolSize | quote }}
+            # Per-job scheduling switches (relaxed binding of scheduled.tasks.*).
+            # On API-only replicas set both to false; keep at least one replica
+            # with them enabled so discovery keeps running.
+            - name: SCHEDULED_TASKS_MAVEN_VERSION_DISCOVERY_ENABLED
+              value: {{ .Values.scheduledTasks.mavenVersionDiscoveryEnabled | quote }}
+            - name: SCHEDULED_TASKS_MINECRAFT_VERSION_DISCOVERY_ENABLED
+              value: {{ .Values.scheduledTasks.minecraftVersionDiscoveryEnabled | quote }}
+          # Probes use the Spring Boot actuator health groups (see application.yaml):
+          #   /actuator/health/liveness  — process alive? (ping only)
+          #   /actuator/health/readiness — ready to serve traffic? (db, flyway, ...)
+          # Both paths are permitAll() in SecurityConfiguration.
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: {{ .Values.probes.startup.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.startup.periodSeconds }}
+            failureThreshold: {{ .Values.probes.startup.failureThreshold }}
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+            failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+            failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

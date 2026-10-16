@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Version;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
@@ -13,6 +14,12 @@ import java.time.Instant;
 public class EventReceiverState {
     @Id
     private String id;
+
+    /**
+     * Optimistic locking version for concurrent update safety in HA deployments.
+     */
+    @Version
+    private Long version;
 
     /**
      * The current state
@@ -96,6 +103,14 @@ public class EventReceiverState {
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
     }
 
     public DeliveryState getDeliveryState() {

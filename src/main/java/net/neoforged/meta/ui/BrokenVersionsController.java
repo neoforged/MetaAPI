@@ -70,7 +70,7 @@ public class BrokenVersionsController {
 
         redirectAttributes.addAttribute("groupId", version.getGroupId());
         redirectAttributes.addAttribute("artifactId", version.getArtifactId());
-        redirectAttributes.addAttribute("version", version.getVersion());
+        redirectAttributes.addAttribute("version", version.getVersionString());
         redirectAttributes.addFlashAttribute("successMessage", "Successfully flagged for retry.");
 
         return "redirect:/ui/broken-versions/version/{groupId}/{artifactId}/{version}";

@@ -8,8 +8,10 @@ plugins {
     id 'com.google.cloud.tools.jib' version '3.5.1'
 }
 
+// Release versions come from git tags; CI passes -Dversion=<semver> at build time.
+// Local and ephemeral (main-branch) builds use this marker.
 group = 'net.neoforged'
-version = '0.0.1-SNAPSHOT'
+version = 'dev'
 description = 'Meta API for NeoForge'
 
 java {
@@ -29,6 +31,14 @@ final dockerMetadataJson = providers.environmentVariable("DOCKER_METADATA_JSON")
 jib {
     from {
         image = project.docker_base_image
+        // Publish a multi-platform OCI index (amd64 + arm64). The app layers
+        // are pure Java and shared across architectures; Jib only resolves a
+        // per-arch base image. Without this, Jib publishes a single manifest
+        // for the builder's architecture.
+        platforms {
+            platform { os = 'linux'; architecture = 'amd64' }
+            platform { os = 'linux'; architecture = 'arm64' }
+        }
     }
     to {
         image = 'ghcr.io/neoforged/metaapi'
@@ -40,16 +50,22 @@ jib {
     }
     container {
         ports = ['8080']
-        jvmFlags = ['--enable-native-access=ALL-UNNAMED']
+        // Container-aware JVM settings: G1 (default) sizes the heap to 75% of
+        // the cgroup memory limit, leaving headroom for metaspace/native so
+        // pods are not OOMKilled at their K8s memory limit.
+        jvmFlags = ['--enable-native-access=ALL-UNNAMED', '-XX:MaxRAMPercentage=75.0']
         labels.putAll(dockerMetadataJson.map { it['labels'] as Map })
     }
 }
 
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.springframework.retry:spring-retry:2.0.12'
+	implementation 'org.springframework:spring-aspects:7.0.1'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'io.micrometer:micrometer-registry-prometheus'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
@@ -67,9 +83,12 @@ dependencies {
 	runtimeOnly 'org.webjars.npm:datatables.net-fixedheader-dt:4.0.5'
 
 	implementation 'org.flywaydb:flyway-core'
+	// Flyway 10+ moved database support into separate modules (needed for the postgres profile)
+	implementation 'org.flywaydb:flyway-database-postgresql'
 
 	runtimeOnly 'org.xerial:sqlite-jdbc:3.47.1.0'
 	runtimeOnly 'org.hibernate.orm:hibernate-community-dialects:7.0.0.Beta1'
+	runtimeOnly 'org.postgresql:postgresql:42.7.5'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'

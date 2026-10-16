@@ -1,19 +1,52 @@
-name: Publish image with plugin
+name: Build & publish
+
+# Versioning model: git tags are releases (semantic versioning).
+#   - Push a tag `vX.Y.Z` -> release build: image tagged X.Y.Z (+ latest),
+#                              Helm chart published to GHCR as OCI at version
+#                              X.Y.Z, GitHub Release created with the chart .tgz.
+#   - Push to any branch / manual dispatch -> dev (test) build only:
+#     ephemeral image on GHCR tagged with the short commit SHA AND the branch name
+#     (slashes replaced by dashes, case preserved, e.g. `feature-HA-Capable`);
+#     no chart publish, no release.
+#     Deploy a branch for testing with: --set image.tag=<short-sha>
+#     (the branch tag always points at that branch's latest push).
 
 on:
   push:
     branches:
-      - main
+      - '**'
+    tags:
+      # Semantic version tags, e.g. v1.0.0, v1.2.3-rc.1
+      - 'v[0-9]+.*'
   workflow_dispatch:
 
 permissions:
   packages: write
+  contents: write   # creating GitHub Releases on tag push
 
 jobs:
-  build:
+  build-and-publish:
     runs-on: ubuntu-latest
     steps:
       - uses: neoforged/actions/checkout@main
+        with:
+          fetch-depth: 0   # full history, needed for auto-generated release notes
+
+      - name: Determine version and mode (git tag = release)
+        id: version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            SEMVER="${GITHUB_REF#refs/tags/v}"
+            IS_RELEASE=true
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+          else
+            SEMVER="$(git rev-parse --short HEAD)"
+            IS_RELEASE=false
+            TAG_NAME=""
+          fi
+          echo "semver=${SEMVER}" >> "$GITHUB_OUTPUT"
+          echo "is_release=${IS_RELEASE}" >> "$GITHUB_OUTPUT"
+          echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Setup Java 25
         uses: neoforged/actions/setup-java@main
@@ -29,16 +62,77 @@ jobs:
         with:
           images: ghcr.io/neoforged/metaapi
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=1.0.0
-            type=schedule
-            type=ref,event=branch
-            type=ref,event=tag
-            type=ref,event=pr
+            # Release tag = the semver from the git tag; dev builds = short SHA.
+            type=raw,value=${{ steps.version.outputs.semver }}
+            # Dev builds additionally get a stable per-branch pointer (e.g. feature-HA-Capable).
+            # GitHub expands this to a literal true/false (the action's own template
+            # engine does not support comparison operators).
+            type=ref,event=branch,enable=${{ steps.version.outputs.is_release == 'false' }}
+            # `latest` always points at the most recent release.
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
 
-      - name: Build with Gradle
-        run: ./gradlew jib -Djib.console=plain
+      - name: Build with Gradle (multi-arch amd64 + arm64)
+        run: ./gradlew jib -Djib.console=plain "-Dversion=${{ steps.version.outputs.semver }}"
         env:
           GH_USERNAME: '${{ github.actor }}'
           GH_PASSWORD: '${{ github.token }}'
           DOCKER_METADATA_JSON: '${{ steps.docker_metadata.outputs.json }}'
+
+      # ---------------------------------------------------------------------
+      # Release-only steps (tag push)
+      # ---------------------------------------------------------------------
+      - name: Publish Helm chart to GHCR (OCI)
+        if: steps.version.outputs.is_release == 'true'
+        run: |
+          set -euo pipefail
+          helm registry login ghcr.io --username "$GH_USERNAME" --password-stdin <<< "$GH_TOKEN"
+          # Pin both chart versions to the release semver from the git tag.
+          sed -i "s/^version:.*/version: ${SEMVER}/" helm/meta-api/Chart.yaml
+          sed -i "s|^appVersion:.*|appVersion: \"${SEMVER}\"|" helm/meta-api/Chart.yaml
+          PKG_DIR="$(mktemp -d)"
+          helm package helm/meta-api -d "$PKG_DIR"
+          echo "PKG_DIR=${PKG_DIR}" >> "${GITHUB_ENV}"
+          helm push "${PKG_DIR}/meta-api-${SEMVER}.tgz" oci://ghcr.io/neoforged
+        env:
+          SEMVER: '${{ steps.version.outputs.semver }}'
+          GH_USERNAME: '${{ github.actor }}'
+          GH_TOKEN: '${{ github.token }}'
+
+      # ---------------------------------------------------------------------
+      # Dev-build chart publish (branch push / manual dispatch)
+      # ---------------------------------------------------------------------
+      - name: Publish Helm chart to GHCR under per-branch tag
+        if: steps.version.outputs.is_release == 'false' && startsWith(github.ref, 'refs/heads/')
+        run: |
+          set -euo pipefail
+          helm registry login ghcr.io --username "$GH_USERNAME" --password-stdin <<< "$GH_TOKEN"
+          # Helm v4 derives the OCI ref from Chart.yaml (<namespace>/<name>:<version>),
+          # so encode the branch pointer as a semver-valid prerelease version. Branch
+          # names are assumed to contain only [A-Za-z0-9/._] (dots are legal here).
+          BRANCH_TAG="${GITHUB_REF#refs/heads/}"
+          BRANCH_TAG="${BRANCH_TAG//\//-}"   # same tag as the docker/metadata-action image
+          sed -i "s/^version:.*/version: 0.0.0-${BRANCH_TAG}/" helm/meta-api/Chart.yaml
+          # appVersion carries the default image tag, so a bare install of this chart
+          # auto-selects this branch's latest test image (override with --set image.tag).
+          sed -i "s|^appVersion:.*|appVersion: \"${BRANCH_TAG}\"|" helm/meta-api/Chart.yaml
+          PKG_DIR="$(mktemp -d)"
+          helm package helm/meta-api -d "$PKG_DIR"
+          # Re-pushing the same ref overwrites, so each branch always has exactly one
+          # up-to-date chart: oci://ghcr.io/neoforged/meta-api:0.0.0-<branch-tag>
+          helm push "${PKG_DIR}/meta-api-0.0.0-${BRANCH_TAG}.tgz" oci://ghcr.io/neoforged
+        env:
+          GH_USERNAME: '${{ github.actor }}'
+          GH_TOKEN: '${{ github.token }}'
+
+      - name: Create GitHub Release
+        if: steps.version.outputs.is_release == 'true'
+        run: |
+          set -euo pipefail
+          gh release create "${TAG_NAME}" \
+            --title "Meta API v${SEMVER}" \
+            --notes "$(git log -1 --format=%B "${GITHUB_SHA}")"
+          # Attach the packaged chart for users who don't use OCI pull.
+          gh release upload "${TAG_NAME}" "${PKG_DIR}/meta-api-${SEMVER}.tgz" --clobber
+        env:
+          SEMVER: '${{ steps.version.outputs.semver }}'
+          TAG_NAME: '${{ steps.version.outputs.tag_name }}'

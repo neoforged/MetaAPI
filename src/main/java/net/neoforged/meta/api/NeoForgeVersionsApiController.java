@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.ZoneOffset;
@@ -51,8 +52,11 @@ public class NeoForgeVersionsApiController implements NeoforgeVersionsApi {
 
     @Override
     @Transactional(readOnly = true)
-    public ResponseEntity<List<NeoForgeVersionSummary>> getNeoForgeVersions() {
-        var versions = neoForgeVersionService.getVersions();
+    public ResponseEntity<List<NeoForgeVersionSummary>> getNeoForgeVersions(
+            @RequestParam(value = "minecraftVersion", required = false) String minecraftVersion) {
+        var versions = (minecraftVersion == null || minecraftVersion.isBlank())
+                ? neoForgeVersionService.getVersions()
+                : neoForgeVersionService.getVersionsForMinecraftVersion(minecraftVersion);
         return ResponseEntity.ok(versions.stream().map(version -> {
             return new NeoForgeVersionSummary(version.getVersion(),
                     version.getReleased().atOffset(ZoneOffset.UTC),

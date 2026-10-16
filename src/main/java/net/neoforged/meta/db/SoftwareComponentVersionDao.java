@@ -42,6 +42,15 @@ public interface SoftwareComponentVersionDao extends JpaRepository<SoftwareCompo
     List<NeoForgeVersion> findAllNeoForgeVersions();
 
     /**
+     * Find all NeoForge versions compatible with a specific Minecraft version.
+     *
+     * @param minecraftVersion The Minecraft version (e.g. "1.20.4")
+     * @return List of matching NeoForge versions, newest release first
+     */
+    @Query("select n from NeoForgeVersion n where n.minecraftVersion.version = :minecraftVersion order by n.released desc")
+    List<NeoForgeVersion> findNeoForgeVersionsByMinecraftVersion(String minecraftVersion);
+
+    /**
      * Get all versions for a specific Maven artifact.
      *
      * @param groupId    The Maven group ID

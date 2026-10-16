@@ -1,5 +1,6 @@
 package net.neoforged.meta.jobs;
 
+import net.neoforged.meta.db.BrokenSoftwareComponentVersionDao;
 import net.neoforged.meta.db.MinecraftVersionDao;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.AutoClose;
@@ -44,6 +45,9 @@ class MinecraftVersionDiscoveryJobTest {
     MinecraftVersionDao minecraftVersionDao;
 
     @Autowired
+    BrokenSoftwareComponentVersionDao brokenVersionDao;
+
+    @Autowired
     MinecraftVersionDiscoveryJob pollingJob;
 
     @BeforeAll
@@ -60,8 +64,11 @@ class MinecraftVersionDiscoveryJobTest {
 
     @AfterEach
     void tearDown() {
-        // Clean up database after each test
+        // Clean up database after each test. Broken-version entries must go as well,
+        // otherwise a version reported broken by one test (e.g. the checksum-mismatch
+        // test) is skipped by later tests that reuse the same version id.
         minecraftVersionDao.deleteAll();
+        brokenVersionDao.deleteAll();
     }
 
     @Test

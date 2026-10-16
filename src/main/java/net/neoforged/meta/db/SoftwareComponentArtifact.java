@@ -16,7 +16,9 @@ import java.time.Instant;
 @Entity
 @Table(
         indexes = {
-                @Index(columnList = "component_version,classifier,extension", unique = true)
+                @Index(name = "idx_artifact_version_classifier_ext",
+                        columnList = "component_version_id, classifier, extension",
+                        unique = true)
         }
 )
 public class SoftwareComponentArtifact {

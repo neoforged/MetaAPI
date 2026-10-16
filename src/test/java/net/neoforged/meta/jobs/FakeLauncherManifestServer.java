@@ -141,14 +141,16 @@ public class FakeLauncherManifestServer implements AutoCloseable {
          * @return This builder for chaining
          */
         public VersionBuilder withManifest(int javaMajorVersion) {
-            // Build the manifest JSON
+            // Build the manifest JSON. The job parses this and iterates over `libraries`,
+            // so it must be present (even if empty) like in real Mojang manifests.
             String manifestJson = String.format("""
                             {
                                 "id": "%s",
                                 "type": "%s",
                                 "javaVersion": {
                                     "majorVersion": %d
-                                }
+                                },
+                                "libraries": []
                             }""",
                     entry.id,
                     entry.type,

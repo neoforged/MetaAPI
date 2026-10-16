@@ -4,7 +4,7 @@
 
 <@page.layout title="Broken Versions - NeoForge Meta API">
     <section>
-        <h2>Broken Version ${version.groupId}:${version.artifactId}:${version.version}</h2>
+        <h2>Broken Version ${version.groupId}:${version.artifactId}:${version.versionString}</h2>
 
         <h3>Summary</h3>
         <table>
@@ -19,7 +19,7 @@
             </tr>
             <tr>
                 <th style="width: 200px;">Version</th>
-                <td>${version.version}</td>
+                <td>${version.versionString}</td>
             </tr>
             <tr>
                 <th style="width: 200px;">First Attempt</th>

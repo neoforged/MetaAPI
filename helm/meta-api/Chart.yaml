@@ -1,0 +1,24 @@
+apiVersion: v2
+name: meta-api
+description: |
+  NeoForge Meta API — high-availability deployment on Kubernetes.
+
+  Runs multiple replicas against a shared PostgreSQL database; scheduled
+  discovery jobs are coordinated between replicas via distributed database
+  locks, so exactly one replica runs each job per scheduled slot.
+
+  Ingress and Gateway API routing are both supported (mutually optional),
+  selected through values: `ingress.enabled` for clusters that use
+  Ingress (legacy) and `gateway.enabled` for clusters that use the
+  Gateway API (newer).
+# `version` and `appVersion` are kept in sync with the project version from
+# gradle.properties (project_version) by CI at publish time.
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - meta-api
+  - neoforged
+  - high-availability
+sources:
+  - https://github.com/neoforged/MetaAPI

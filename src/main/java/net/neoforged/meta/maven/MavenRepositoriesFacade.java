@@ -10,8 +10,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
-import tools.jackson.core.JacksonException;
 import tools.jackson.dataformat.xml.XmlMapper;
 
 import java.net.URLEncoder;
@@ -98,8 +96,12 @@ public class MavenRepositoriesFacade {
             logger.info("Found {} versions for {}:{} in repository '{}'", versions.size(), groupId, artifactId, repositoryId);
             return versions;
 
-        } catch (RestClientException | JacksonException e) {
-            throw new RuntimeException("Error fetching versions for " + groupId + ":" + artifactId + " from repository " + repositoryId + ": " + e, e);
+        } catch (Exception e) {
+            // Honor the method contract: report no versions on error so that a single
+            // unreachable or misbehaving component does not abort discovery of all others.
+            logger.warn("Error fetching versions for {}:{} from repository '{}': {}",
+                    groupId, artifactId, repositoryId, e.toString());
+            return List.of();
         }
     }
 

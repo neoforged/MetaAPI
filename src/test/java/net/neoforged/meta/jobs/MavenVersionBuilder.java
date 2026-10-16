@@ -3,6 +3,7 @@ package net.neoforged.meta.jobs;
 import net.neoforged.meta.manifests.installer.InstallerProfile;
 import net.neoforged.meta.manifests.version.AssetIndexReference;
 import net.neoforged.meta.manifests.version.JavaVersionReference;
+import net.neoforged.meta.manifests.version.MinecraftArguments;
 import net.neoforged.meta.manifests.version.MinecraftVersionManifest;
 import org.jspecify.annotations.Nullable;
 
@@ -56,8 +57,9 @@ class MavenVersionBuilder {
                     null,
                     null,
                     new JavaVersionReference(21),
-                    null,
-                    null,
+                    "net.minecraft.client.main.Main",
+                    // Required: NeoForgeVersionExtractor reads arguments().jvm() from this manifest.
+                    new MinecraftArguments(List.of(), List.of()),
                     Instant.now()
             );
 
@@ -65,9 +67,15 @@ class MavenVersionBuilder {
             installerJar.write(versionManifest.toByteArray());
             installerJar.closeEntry();
 
+            // The server arg files must contain a recognizable main class (matched by
+            // ServerArgFileExtractor.MAIN_CLASS_PATTERNS) and be identical for unix/windows.
+            var serverArgs = "-DlibraryDirectory=${user_directory}/libraries\n" +
+                    "net.neoforged.fml.startup.FMLClientLaunch";
             installerJar.putNextEntry(new JarEntry("data/unix_args.txt"));
+            installerJar.write(serverArgs.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             installerJar.closeEntry();
             installerJar.putNextEntry(new JarEntry("data/win_args.txt"));
+            installerJar.write(serverArgs.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             installerJar.closeEntry();
 
         } catch (IOException e) {

@@ -1,0 +1,116 @@
+# Default values for meta-api.
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: ghcr.io/neoforged/metaapi
+  # Defaults to the chart appVersion when empty. CI/GitOps should pin an
+  # explicit tag per environment (e.g. --set image.tag=1.0.0 or a SHA).
+  tag: ""
+  pullPolicy: IfNotPresent
+
+# Image pull secrets, only needed if the ghcr package is private.
+pullSecrets: []
+# - name: ghcr-pull-secret
+
+# Run at least two replicas for HA; the distributed job locks guarantee that
+# exactly one replica runs each scheduled discovery job per slot.
+replicaCount: 3
+
+# The chart is designed around the postgres profile (shared database,
+# Flyway-managed schema). Do not change unless you know what you are doing.
+springProfilesActive: postgres
+
+# Optional fixed INSTANCE_ID for this release. When empty it is auto-generated
+# from the pod hostname (unique per replica, which is usually what you want).
+instanceId: ""
+
+# PostgreSQL connection data (postgres profile). Provide credentials in exactly ONE way:
+#   Option A: set `url`, `username` and `password` below — the chart then creates
+#             and manages a "<fullname>-db" Secret itself. Preferred for GitOps.
+#   Option B: leave url/username/password empty and set `existingSecret` to the name of
+#             a pre-existing Secret with keys `url`, `username` and `password`. E.g.: kubectl create secret generic meta-api-db \
+#               --from-literal=url='jdbc:postgresql://db:5432/metaapi' \
+#               --from-literal=username=metaapi \
+#               --from-literal=password='...' -n <ns>
+database:
+  # Option B: name of an existing Secret. When non-empty it takes precedence and
+  # the inline values are ignored (no chart-managed secret is created).
+  existingSecret: ""
+  # Option A: connection data, rendered into a chart-managed Secret.
+  url: ""   # e.g. jdbc:postgresql://db-host:5432/metaapi
+  username: "metaapi"
+  password: ""
+  # HikariCP max pool size per replica. With 3 replicas on a modest Postgres,
+  # keep this at 15 or lower (total connections = replicas * poolSize).
+  poolSize: "15"
+
+# Per-job scheduling switches. Set both to false on API-only replicas and keep
+# at least one replica with them enabled so discovery keeps running.
+scheduledTasks:
+  mavenVersionDiscoveryEnabled: true
+  minecraftVersionDiscoveryEnabled: true
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 768Mi
+  limits:
+    # JVM heap is capped at 75% of the memory limit (MaxRAMPercentage in
+    # build.gradle), leaving headroom for metaspace/native so the pod survives
+    # to a graceful restart instead of an OOMKill.
+    cpu: "1"
+    memory: 1Gi
+
+probes:
+  startup:
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    failureThreshold: 36   # allow up to ~3 minutes for JVM boot + migrations
+  liveness:
+    periodSeconds: 10
+    failureThreshold: 3
+  readiness:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    failureThreshold: 2
+
+service:
+  type: ClusterIP
+  port: 80
+
+# ---------------------------------------------------------------------------
+# Ingress — for legacy clusters that use the Ingress API.
+# Enable exactly one of ingress.enabled / gateway.enabled (enabling both is
+# allowed but pointless; both would route to the same Service).
+# ---------------------------------------------------------------------------
+ingress:
+  enabled: false
+  # e.g. nginx or traefik; empty = cluster default ingress class
+  className: ""
+  host: meta-api.prod.k8s.neoforged.net
+  path: /
+  pathType: Prefix
+  annotations: {}
+    # networking.k8s.io/ingress.class: nginx
+  tls: []
+    # - secretName: meta-api-tls
+
+# ---------------------------------------------------------------------------
+# Gateway API — for newer clusters that use the Gateway API.
+# Requires the gateway.networking.k8s.io/v1 CRDs to be installed and a
+# Gateway resource with an HTTP listener on `gateway.port`.
+# ---------------------------------------------------------------------------
+gateway:
+  enabled: false
+  parentRef:
+    # Name of the gateway to host it from
+    name: ""
+    # The namespace in which the gateway lives.
+    namespace: ""
+    # The connection section in which we need to be referenced.
+    sectionName: ""
+  # Hostnames this route serves; empty = all hosts allowed by the Gateway.
+  hostnames: []
+    # - meta-api.prod.k8s.neoforged.net

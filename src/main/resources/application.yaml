@@ -125,4 +125,15 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,scheduledtasks,flyway
+        # prometheus metrics are scraped at /actuator/prometheus by the monitoring stack
+        include: health,info,scheduledtasks,flyway,prometheus
+  endpoint:
+    health:
+      # Expose /actuator/health/liveness and /actuator/health/readiness for K8s probes
+      probes:
+        enabled: true
+  health:
+    db:
+      # Disable the built-in datasource check; our DatabaseHealthIndicator provides a
+      # more informative replacement (connectivity + connection pool stats)
+      enabled: false

@@ -42,6 +42,13 @@ public class NeoForgeVersionService {
     }
 
     /**
+     * {@return all versions compatible with the given Minecraft version, newest release first}
+     */
+    public List<NeoForgeVersion> getVersionsForMinecraftVersion(String minecraftVersion) {
+        return dao.findNeoForgeVersionsByMinecraftVersion(minecraftVersion);
+    }
+
+    /**
      * {@return a map from minecraft version to latest NF version available}
      */
     public Map<MinecraftVersion, NeoForgeVersion> getLatestVersionByMinecraftVersion() {

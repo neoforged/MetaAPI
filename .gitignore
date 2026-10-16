@@ -40,3 +40,6 @@ out/
 /data/
 
 /application.properties
+
+### Agent Plans ###
+.agent/
